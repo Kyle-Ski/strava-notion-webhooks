@@ -107,6 +107,9 @@ const responseBuilder = async (url, errorMessage, options = false) => {
             return {status: response.status, data: errorMessage}
         }
         // As of now, I'm assuming we're ONLY going to be hiting things that return json
+        if (options.method == "DELETE") {
+            return { status: 200, data: 'deleted' }
+        }
         const data = await response.json()
         return {status: 200, data}
     } catch(e) {

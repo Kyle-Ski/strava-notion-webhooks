@@ -1,6 +1,8 @@
 require("dotenv").config();
 const FormData = require("form-data");
 const fetch = require("node-fetch");
+const { LOCALS_KEYS } = require("../constants")
+const { getLocals, setLocals } = require("../utils/localsUtils")
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 
 // Test curl to delete the subscription
@@ -8,17 +10,15 @@ const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 //     -F client_id=CLIENT_ID \
 //     -F client_secret=CLIENT_SECRET
 
-const deleteSubscription = async (subscriptionId = challengeId) => {
-  console.log("Deleting subscription...", challengeId, subscriptionId);
+const deleteSubscription = async (req, res) => {
+  const subscriptionId = getLocals(req, LOCALS_KEYS.subscriptionId)
+  console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
   body.append("client_id", process.env.CLIENT_ID);
   body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
   const requestOptions = {
     body,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
     method: "DELETE",
   };
 
@@ -36,6 +36,7 @@ const getFallback = (req, res) => {
 };
 
 const postWebhookSubscription = async (req, res) => {
+  const baseUrl = getLocals(req, LOCALS_KEYS.callbackUrl)
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
   //     https://www.strava.com/api/v3/push_subscriptions \
@@ -44,8 +45,8 @@ const postWebhookSubscription = async (req, res) => {
   //     -F callback_url=https://BASE_URL/strava/webhook \
   //     -F verify_token=VERIFY_TOKEN
   const body = new FormData();
-  const callback = `${req.app.locals.callbackUrl}/strava/webhook`
-  const token = req.app.locals.access_token
+  const callback = `${baseUrl}/strava/webhook`
+  const token = getLocals(req, LOCALS_KEYS.access_token)
   body.append("client_id", process.env.CLIENT_ID);
   body.append("client_secret", process.env.CLIENT_SECRET);
   body.append("callback_url", callback);
@@ -62,6 +63,9 @@ const postWebhookSubscription = async (req, res) => {
     requestOptions
   );
   console.log("SUBSCRIBE RESPONSE:", response)
+  if (response.status == 200 && response?.data?.id != undefined) {
+    setLocals(req, LOCALS_KEYS.subscriptionId, response?.data?.id)
+  }
   sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
@@ -86,7 +90,7 @@ const recieveWebhookEvent = (req, res) => {
 
 const subscribeToWebhook = (req, res) => {
   // Your verify token. Should be a random string.
-  const VERIFY_TOKEN = req.app.locals.access_token;
+  const VERIFY_TOKEN = getLocals(req, LOCALS_KEYS.access_token)
   // Parses the query params
   let mode = req.query["hub.mode"];
   let token = req.query["hub.verify_token"];
@@ -96,7 +100,7 @@ const subscribeToWebhook = (req, res) => {
     // Verifies that the mode and token sent are valid
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
       // Responds with the challenge token from the request
-      req.app.locals.challengeId = challenge;
+      setLocals(req, LOCALS_KEYS.challengeId, challenge)
       console.log("WEBHOOK_VERIFIED", challenge);
       return res.json({ "hub.challenge": challenge });
     } else {
