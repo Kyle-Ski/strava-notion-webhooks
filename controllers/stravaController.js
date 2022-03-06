@@ -1,9 +1,7 @@
 require("dotenv").config();
 const FormData = require("form-data");
 const fetch = require("node-fetch");
-
-var challengeId = "";
-const callbackUrl = "";
+const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 
 // Test curl to delete the subscription
 // curl -X DELETE https://www.strava.com/api/v3/push_subscriptions/SUBSCRIPTION_ID \
@@ -16,35 +14,28 @@ const deleteSubscription = async (subscriptionId = challengeId) => {
   body.append("client_id", process.env.CLIENT_ID);
   body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
+  const requestOptions = {
+    body,
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    method: "DELETE",
+  };
 
-  try {
-    const request = await fetch(
-      `https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}`,
-      {
-        body,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        method: "DELETE",
-      }
-    );
-  
-    const response = await request.json();
-    console.log("DELETE RESPONSE:", response);
-    return res.status(200).json({ message: "Delete successfull?" });
-  } catch(e) {
-    console.log(`ERROR: error fetching https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}, 
-    
-    ${e}`)
-    return res.status(500).json({ message: "error deleting subscription" });
-  }
+  const response = await responseBuilder(
+    `https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}`,
+    `Error deleting subscription: ${subscriptionId}`,
+    requestOptions
+  );
+
+  sendResponse(res, response, "Delete successfull?");
 };
 
 const getFallback = (req, res) => {
-  return res.status(200).json({ message: "hello from the strava route" });
+  return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
-const postWebhookSubscription = async () => {
+const postWebhookSubscription = async (req, res) => {
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
   //     https://www.strava.com/api/v3/push_subscriptions \
@@ -59,26 +50,28 @@ const postWebhookSubscription = async () => {
   body.append("", "\\");
   body.append("callback_url", `${callbackUrl}/strava/webhook`);
   body.append("", "\\");
-  body.append("verify_token", process.env.VERIFY_TOKEN);
+  body.append("verify_token", req.app.locals.access_token);
 
-  try {
-    fetch("https://www.strava.com/api/v3/push_subscriptions", {
-      body,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      method: "POST",
-    });
-    return;
-  } catch(e) {
-    
-  }
+  const requestOptions = {
+    body,
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    method: "POST",
+  };
+
+  const response = responseBuilder(
+    "https://www.strava.com/api/v3/push_subscriptions",
+    "Error attempting to subscribe to the webhook.",
+    requestOptions
+  );
+  sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
 // Creates the endpoint for our webhook, supposed to be hit when an activity is created
 const recieveWebhookEvent = (req, res) => {
   console.log("webhook event received!", req.query, req.body);
-  return res.status(200).send("EVENT_RECEIVED");
+  return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
 };
 
 // test POST to our callback URL to see if it responds with 200
@@ -96,7 +89,7 @@ const recieveWebhookEvent = (req, res) => {
 
 const subscribeToWebhook = (req, res) => {
   // Your verify token. Should be a random string.
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+  const VERIFY_TOKEN = req.app.locals.access_token;
   // Parses the query params
   let mode = req.query["hub.mode"];
   let token = req.query["hub.verify_token"];
@@ -106,7 +99,7 @@ const subscribeToWebhook = (req, res) => {
     // Verifies that the mode and token sent are valid
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
       // Responds with the challenge token from the request
-      challengeId = challenge;
+      req.app.locals.challengeId = challenge;
       console.log("WEBHOOK_VERIFIED", challenge);
       return res.json({ "hub.challenge": challenge });
     } else {
@@ -120,13 +113,19 @@ const subscribeToWebhook = (req, res) => {
  * Validate Subscription
  * curl -G https://BASEURL.ngrok.io/strava/webhook?hub.verify_token=VERIFY_TOKEN&hub.challenge=CHALLENGE_CODE&hub.mode=subscribe
  */
-const validateSubscription = async (callbackUrl, challenge) => {
-  const request = await fetch(
-    `${callbackUrl}?hub.verify_token=${process.env.VERIFY_TOKEN}&hub.challenge=${challenge}&hub.mode=subscribe`
+const healthCheck = async (callbackUrl, challenge, res) => {
+  // Test fetch to open free api
+  // const response = await responseBuilder(
+  //   `https://www.7timer.info/bin/astro.php?lon=113.2&lat=23.1&ac=0&unit=metric&output=json&tzshift=0`,
+  //   "Error while checking health of the app"
+  // );
+  const response = await responseBuilder(
+    `${callbackUrl}?hub.verify_token=${req.app.locals.access_token}&hub.challenge=${challenge}&hub.mode=subscribe`,
+    "Error while checking health of the app"
   );
-  const response = await request.json();
-  console.log("Validate Subscription response:", response);
-  return response;
+  console.log("Health Check response:", response);
+  const healthCheckMessage = "Health check complete, everything looking ok.";
+  return sendResponse(res, response, healthCheckMessage);
 };
 
 const viewSubscription = async () => {
@@ -134,19 +133,19 @@ const viewSubscription = async () => {
   //   curl -G https://www.strava.com/api/v3/push_subscriptions \
   //       -d client_id=CLIENT_ID \
   //       -d client_secret=CLIENT_SECRET
-  const request = await fetch(
+  const requestOptions = {
+    body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}`,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    method: "GET",
+  };
+  const response = responseBuilder(
     "https://www.strava.com/api/v3/push_subscriptions",
-    {
-      body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}`,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      method: "GET",
-    }
+    `Error while trying to view the subscriptions.`,
+    requestOptions
   );
-
-  const response = await request.json();
-  return;
+  return sendResponse(res, response, response.data);
 };
 
 module.exports = {
@@ -155,6 +154,6 @@ module.exports = {
   postWebhookSubscription,
   recieveWebhookEvent,
   subscribeToWebhook,
-  validateSubscription,
+  healthCheck,
   viewSubscription,
 };
