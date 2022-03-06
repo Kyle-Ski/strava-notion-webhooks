@@ -1,14 +1,33 @@
 require("dotenv").config();
 const fetch = require("node-fetch");
+const { responseBuilder } = require("../utils/httpUtils")
 
-const fetchOauthToken = async (clientId, code, res) => {
+const fetchOauthToken = async (code, res, req) => {
+  // TODO should we use the response builder for this? probably..
+  // const requestOptions = {
+  //   method: "POST",
+  //   body: `client_id=${clientId}&client_secret=${process.env.CLIENT_SECRET}&code=${code}&grant_type=authorization_code`,
+  // }
+  // const errorMessage = "ERROR: error exchanging tokens with https://www.strava.com/api/v3/oauth/token"
+  // const response = responseBuilder("https://www.strava.com/api/v3/oauth/token", res, errorMessage, requestOptions)
+  // console.log("response:", response)
   try {
+    const bodyThing = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&code=${code}&grant_type=authorization_code`
+    console.log(":::::::::::", bodyThing,)
     const request = await fetch("https://www.strava.com/api/v3/oauth/token", {
       method: "POST",
-      body: `client_id=${clientId}&client_secret=${process.env.CLIENT_SECRET}&code=${code}&grant_type=authorization_code`,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: bodyThing,
     });
     const response = await request.json();
     console.log("response:", response);
+    // Set the app.locals for the authentication
+    // TODO obfuscate these? Maybe create a getter and setter?
+    req.app.locals.expires_at = response?.expires_at
+    req.app.locals.refresh_token = response?.refresh_token
+    req.app.locals.access_token = response?.access_token
     res.status(200).json({message: "exchanging tokens..."})
     return response;
   } catch(e) {
@@ -31,14 +50,11 @@ const exchangeTokens = (req, res) => {
   }
 
   if (req.query.code) {
-    fetchOauthToken("78993", req.query.code, res);
+    return fetchOauthToken(req.query.code, res, req);
   } else {
     console.log("NO req.query.code");
     return res.status(404).json({message: "ERROR: request query code not found."})
   }
-  return res
-    .status(200)
-    .json({ message: "Attempting to exchange tokens with my app?" });
 };
 
 module.exports = {
