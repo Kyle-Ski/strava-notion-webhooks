@@ -17,20 +17,27 @@ const deleteSubscription = async (subscriptionId = challengeId) => {
   body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
 
-  const request = await fetch(
-    `https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}`,
-    {
-      body,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      method: "DELETE",
-    }
-  );
-
-  const response = await request.json();
-  console.log("DELETE RESPONSE:", response);
-  return res.status(200).json({ message: "Delete successfull?" });
+  try {
+    const request = await fetch(
+      `https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}`,
+      {
+        body,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        method: "DELETE",
+      }
+    );
+  
+    const response = await request.json();
+    console.log("DELETE RESPONSE:", response);
+    return res.status(200).json({ message: "Delete successfull?" });
+  } catch(e) {
+    console.log(`ERROR: error fetching https://www.strava.com/api/v3/push_subscriptions/${subscriptionId}, 
+    
+    ${e}`)
+    return res.status(500).json({ message: "error deleting subscription" });
+  }
 };
 
 const getFallback = (req, res) => {
@@ -54,14 +61,18 @@ const postWebhookSubscription = async () => {
   body.append("", "\\");
   body.append("verify_token", process.env.VERIFY_TOKEN);
 
-  fetch("https://www.strava.com/api/v3/push_subscriptions", {
-    body,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-    method: "POST",
-  });
-  return;
+  try {
+    fetch("https://www.strava.com/api/v3/push_subscriptions", {
+      body,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      method: "POST",
+    });
+    return;
+  } catch(e) {
+    
+  }
 };
 
 // Creates the endpoint for our webhook, supposed to be hit when an activity is created
