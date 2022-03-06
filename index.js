@@ -52,7 +52,7 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
   console.log("Checking application health...", app.locals.callbackUrl, typeof app.locals.access_token === 'string')
-  healthCheck(callbackUrl, challengeId, res)
+  // healthCheck(app.locals.callbackUrl, app.locals.challengeId, res, app.locals.access_token)
   //What else could be checked?
   return
 })
