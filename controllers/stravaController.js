@@ -53,9 +53,6 @@ const postWebhookSubscription = async (req, res) => {
 
   const requestOptions = {
     body,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
     method: "POST",
   };
 
