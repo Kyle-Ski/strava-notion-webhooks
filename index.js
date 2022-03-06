@@ -1,20 +1,34 @@
 "use strict";
 require("dotenv").config();
 
-// TODO capture these upon first creation
-const callbackUrl = ``
-const challengeId = ``
-
+const ngrok = require("ngrok");
 const express = require("express"),
   bodyParser = require("body-parser"),
   app = express().use(bodyParser.json());
 
-const { validateSubscription } = require('./controllers/stravaController')
-const { connectNgrok } = require('./controllers/ngrokController')
+const { healthCheck } = require('./controllers/stravaController')
 const authRoutes = require('./routes/authRoutes')
 const stravaRoutes = require('./routes/stravaRoutes')
 const notionRoutes = require('./routes/notionRoutes')
 const expressPort = 8080
+
+const connectNgrok = async (port) => {
+  console.log(
+    `webhook is listening on ${port}, connecting ngrok to the same..`
+  );
+  try {
+    const url = await ngrok.connect({
+      authtoken: process.env.NGROK_AUTH_TOKEN,
+      addr: port,
+    });
+    app.locals.callbackUrl = url
+    console.log("url:", url);
+    return;
+  
+  } catch(e) {
+    console.log("ERROR: error connecting ngrok:", e)
+  }
+};
 
 // Sets server port and connects ngrok to the same port
 app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
@@ -36,16 +50,21 @@ app.get("/", (req, res) => {
   return
 })
 
-app.get("/health", (req, res) => {
-  console.log("Checking application health...")
-  validateSubscription(callbackUrl, challengeId)
+app.get("/health", async (req, res) => {
+  console.log("Checking application health...", app.locals.callbackUrl, typeof app.locals.access_token === 'string')
+  healthCheck(callbackUrl, challengeId, res)
   //What else could be checked?
-  res.status(200).json({message: "Health check complete, app running."})
+  return
 })
 
 app.use('/auth', authRoutes)
 app.use('/strava', stravaRoutes)
 app.use('/notion', notionRoutes)
 
-// https://www.strava.com/oauth/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=NGROK_CALLBACK_URL/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read
+// curl -X POST https://www.strava.com/api/v3/oauth/token \
+//   -d client_id=CLIENT_ID \
+//   -d client_secret=CLIENT_SECRET \
+//   -d code=SHORT_LIVED_CODE \
+//   -d grant_type=authorization_code
+// https://www.strava.com/oauth/authorize?client_id=CLIENT_IT&response_type=code&redirect_uri=BASE_NGROK_URL/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read
     
