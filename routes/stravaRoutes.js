@@ -5,7 +5,7 @@ const controller = require("../controllers/stravaController");
 router.get("/", controller.getFallback);
 router.get("/webhook", controller.subscribeToWebhook);
 router.post("/webhook", controller.recieveWebhookEvent);
-router.post("/subscribe", controller.postWebhookSubscription);
+router.get("/subscribe", controller.postWebhookSubscription);
 router.get("/subscribe/view", controller.viewSubscription);
 // router.get('/subscribe/delete', controller.deleteSubscription('')) // breaks with async
 

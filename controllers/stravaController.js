@@ -44,13 +44,12 @@ const postWebhookSubscription = async (req, res) => {
   //     -F callback_url=https://BASE_URL/strava/webhook \
   //     -F verify_token=VERIFY_TOKEN
   const body = new FormData();
+  const callback = `${req.app.locals.callbackUrl}/strava/webhook`
+  const token = req.app.locals.access_token
   body.append("client_id", process.env.CLIENT_ID);
-  body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
-  body.append("", "\\");
-  body.append("callback_url", `${callbackUrl}/strava/webhook`);
-  body.append("", "\\");
-  body.append("verify_token", req.app.locals.access_token);
+  body.append("callback_url", callback);
+  body.append("verify_token", token);
 
   const requestOptions = {
     body,
@@ -60,11 +59,12 @@ const postWebhookSubscription = async (req, res) => {
     method: "POST",
   };
 
-  const response = responseBuilder(
+  const response = await responseBuilder(
     "https://www.strava.com/api/v3/push_subscriptions",
     "Error attempting to subscribe to the webhook.",
     requestOptions
   );
+  console.log("SUBSCRIBE RESPONSE:", response)
   sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
@@ -113,14 +113,14 @@ const subscribeToWebhook = (req, res) => {
  * Validate Subscription
  * curl -G https://BASEURL.ngrok.io/strava/webhook?hub.verify_token=VERIFY_TOKEN&hub.challenge=CHALLENGE_CODE&hub.mode=subscribe
  */
-const healthCheck = async (callbackUrl, challenge, res) => {
+const healthCheck = async (callbackUrl, challenge, res, access_token) => {
   // Test fetch to open free api
   // const response = await responseBuilder(
   //   `https://www.7timer.info/bin/astro.php?lon=113.2&lat=23.1&ac=0&unit=metric&output=json&tzshift=0`,
   //   "Error while checking health of the app"
   // );
   const response = await responseBuilder(
-    `${callbackUrl}?hub.verify_token=${req.app.locals.access_token}&hub.challenge=${challenge}&hub.mode=subscribe`,
+    `${callbackUrl}?hub.verify_token=${access_token}&hub.challenge=${challenge}&hub.mode=subscribe`,
     "Error while checking health of the app"
   );
   console.log("Health Check response:", response);
@@ -128,7 +128,7 @@ const healthCheck = async (callbackUrl, challenge, res) => {
   return sendResponse(res, response, healthCheckMessage);
 };
 
-const viewSubscription = async () => {
+const viewSubscription = async (req, res) => {
   // Test curl to view the subscription
   //   curl -G https://www.strava.com/api/v3/push_subscriptions \
   //       -d client_id=CLIENT_ID \
