@@ -82,6 +82,7 @@ const responseBuilder = async (url, errorMessage, options = false) => {
     // Make sure the url is a string and at least 18 characters
     checkUrl(url, fetchOptions.method)
     try {
+        console.log("Fetching with:",JSON.stringify(fetchOptions))
         const response = await fetch(url, fetchOptions)
 
         if (!response.ok) {
