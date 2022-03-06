@@ -131,21 +131,27 @@ const healthCheck = async (callbackUrl, challenge, res, access_token) => {
 
 const viewSubscription = async (req, res) => {
   // Test curl to view the subscription
-  //   curl -G https://www.strava.com/api/v3/push_subscriptions \
-  //       -d client_id=CLIENT_ID \
-  //       -d client_secret=CLIENT_SECRET
+    // curl -G https://www.strava.com/api/v3/push_subscriptions \
+    //     -d client_id=CLIENT_ID \
+    //     -d client_secret=CLIENT_SECRET
+    const access_token = getLocals(req, LOCALS_KEYS.access_token)
   const requestOptions = {
-    body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}`,
+    body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&verify_token=${access_token}`,
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/x-www-form-urlencoded"
     },
-    method: "GET",
+    method: "POST",
   };
   const response = responseBuilder(
     "https://www.strava.com/api/v3/push_subscriptions",
     `Error while trying to view the subscriptions.`,
     requestOptions
   );
+  console.log("view ------->", JSON.stringify(response))
+  if (!response?.status) {
+    console.log("HERE:")
+    return sendResponse(res, {status: 200}, 'no subscriptions')
+  }
   return sendResponse(res, response, response.data);
 };
 

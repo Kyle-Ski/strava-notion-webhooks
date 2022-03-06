@@ -7,6 +7,6 @@ router.get("/webhook", controller.subscribeToWebhook);
 router.post("/webhook", controller.recieveWebhookEvent);
 router.get("/subscribe", controller.postWebhookSubscription);
 router.get("/subscribe/view", controller.viewSubscription);
-router.get('/subscribe/delete', controller.deleteSubscription) // breaks with async
+router.get('/subscribe/delete', controller.deleteSubscription)
 
 module.exports = router;
