@@ -1,6 +1,20 @@
 {
+  "name": "strava-notion-webhooks",
+  "version": "0.0.1",
+  "description": "as an authenticated notion and strava api user, a node server that will listen to the strava api for new activities and send that data to a new notion page",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": {
+    "name": "Kyle Czajkowski"
+  },
   "dependencies": {
     "body-parser": "^1.19.2",
-    "express": "^4.17.3"
+    "dotenv": "^16.0.0",
+    "express": "^4.17.3",
+    "form-data": "^4.0.0",
+    "ngrok": "^4.3.1",
+    "node-fetch": "^2.6.7"
   }
 }

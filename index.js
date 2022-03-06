@@ -1,48 +1,51 @@
-'use strict';
-require('dotenv').config();
+"use strict";
+require("dotenv").config();
 
-// Imports dependencies and sets up http server
-const
-  express = require('express'),
-  bodyParser = require('body-parser'),
-// creates express http server
+// TODO capture these upon first creation
+const callbackUrl = ``
+const challengeId = ``
+
+const express = require("express"),
+  bodyParser = require("body-parser"),
   app = express().use(bodyParser.json());
 
-// Sets server port and logs message on success
-app.listen(process.env.PORT || 80, () => console.log('webhook is listening'));
+const { validateSubscription } = require('./controllers/stravaController')
+const { connectNgrok } = require('./controllers/ngrokController')
+const authRoutes = require('./routes/authRoutes')
+const stravaRoutes = require('./routes/stravaRoutes')
+const notionRoutes = require('./routes/notionRoutes')
+const expressPort = 8080
 
-// Creates the endpoint for our webhook
-app.post('/webhook', (req, res) => {
-  console.log("webhook event received!", req.query, req.body);
-  res.status(200).send('EVENT_RECEIVED');
-});
+// Sets server port and connects ngrok to the same port
+app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
 
-// Adds support for GET requests to our webhook
-app.get('/webhook', (req, res) => {
-  // Your verify token. Should be a random string.
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-  // Parses the query params
-  let mode = req.query['hub.mode'];
-  let token = req.query['hub.verify_token'];
-  let challenge = req.query['hub.challenge'];
-  // Checks if a token and mode is in the query string of the request
-  if (mode && token) {
-    // Verifies that the mode and token sent are valid
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {     
-      // Responds with the challenge token from the request
-      console.log('WEBHOOK_VERIFIED');
-      res.json({"hub.challenge":challenge});  
-    } else {
-      // Responds with '403 Forbidden' if verify tokens do not match
-      res.sendStatus(403);      
-    }
+app.get("/", (req, res) => {
+  console.log(`GET "/"`)
+  res.status(200).json({message: "Hello! Looks like you found the root address!"})
+
+  //TODO maybe make this into a logging function?
+  for(let key in req.params) {
+    console.log(`PARAMS: key: ${key}, value: ${req.params[key]}`)
   }
-});
+  for(let key in req.body) {
+    console.log(`BODY: key: ${key}, value: ${req.body[key]}`)
+  }
+  for(let key in req.query) {
+    console.log(`QUERY: key: ${key}, value: ${req.query[key]}`)
+  }
+  return
+})
 
-// Test curl request to ngrok domain
-// curl -X POST \
-//   https://www.strava.com/api/v3/push_subscriptions \
-//   -F client_id=CLIENT ID \
-//   -F client_secret=CLIENT SECRET FROM STRAVA APP \
-//   -F callback_url=https://RUNNING NGROK DOMAIN.ngrok.io/webhook \
-//   -F verify_token=ACCESS TOKEN FROM STRAVA APP
+app.get("/health", (req, res) => {
+  console.log("Checking application health...")
+  validateSubscription(callbackUrl, challengeId)
+  //What else could be checked?
+  res.status(200).json({message: "Health check complete, app running."})
+})
+
+app.use('/auth', authRoutes)
+app.use('/strava', stravaRoutes)
+app.use('/notion', notionRoutes)
+
+// https://www.strava.com/oauth/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=NGROK_CALLBACK_URL/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read
+    
