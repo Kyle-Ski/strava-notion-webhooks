@@ -1,6 +1,12 @@
 require("dotenv").config();
 const FormData = require("form-data");
-const fetch = require("node-fetch");
+const {
+  LOCALS_KEYS,
+  WEBHOOK_EVENTS,
+  WEBHOOK_EVENT_TYPES,
+} = require("../constants");
+const strava = require("strava-v3");
+const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 
 // Test curl to delete the subscription
@@ -8,17 +14,15 @@ const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 //     -F client_id=CLIENT_ID \
 //     -F client_secret=CLIENT_SECRET
 
-const deleteSubscription = async (subscriptionId = challengeId) => {
-  console.log("Deleting subscription...", challengeId, subscriptionId);
+const deleteSubscription = async (req, res) => {
+  const subscriptionId = getLocals(req, LOCALS_KEYS.subscriptionId);
+  console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
   body.append("client_id", process.env.CLIENT_ID);
   body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
   const requestOptions = {
     body,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
     method: "DELETE",
   };
 
@@ -31,11 +35,16 @@ const deleteSubscription = async (subscriptionId = challengeId) => {
   sendResponse(res, response, "Delete successfull?");
 };
 
-const getFallback = (req, res) => {
+const getFallback = async (req, res) => {
+  const payload = await strava.athlete.get({
+    access_token: getLocals(req, LOCALS_KEYS.access_token),
+  });
+  console.log("GET /", payload);
   return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
 const postWebhookSubscription = async (req, res) => {
+  const baseUrl = getLocals(req, LOCALS_KEYS.callbackUrl);
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
   //     https://www.strava.com/api/v3/push_subscriptions \
@@ -44,34 +53,88 @@ const postWebhookSubscription = async (req, res) => {
   //     -F callback_url=https://BASE_URL/strava/webhook \
   //     -F verify_token=VERIFY_TOKEN
   const body = new FormData();
+  const callback = `${baseUrl}/strava/webhook`;
+  const token = getLocals(req, LOCALS_KEYS.access_token);
   body.append("client_id", process.env.CLIENT_ID);
-  body.append("", "\\");
   body.append("client_secret", process.env.CLIENT_SECRET);
-  body.append("", "\\");
-  body.append("callback_url", `${callbackUrl}/strava/webhook`);
-  body.append("", "\\");
-  body.append("verify_token", req.app.locals.access_token);
+  body.append("callback_url", callback);
+  body.append("verify_token", token);
 
   const requestOptions = {
     body,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
     method: "POST",
   };
 
-  const response = responseBuilder(
+  const response = await responseBuilder(
     "https://www.strava.com/api/v3/push_subscriptions",
     "Error attempting to subscribe to the webhook.",
     requestOptions
   );
+  console.log("SUBSCRIBE RESPONSE:", response);
+  if (response.status == 200 && response?.data?.id != undefined) {
+    setLocals(req, LOCALS_KEYS.subscriptionId, response?.data?.id);
+  }
   sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
-// Creates the endpoint for our webhook, supposed to be hit when an activity is created
-const recieveWebhookEvent = (req, res) => {
+/* Webhook event example:
+{
+  aspect_type: 'delete',
+  event_time: 1646695506,
+  object_id: 6789384442,
+  object_type: 'activity',
+  owner_id: 46337708,
+  subscription_id: 213604,
+  updates: {}
+}*/
+/**
+ * Creates the endpoint for our webhook, supposed to be hit when an activity is created
+ * @param {Object} req req object from the route
+ * @param {Object} res res object from the route
+ * @returns
+ */
+const recieveWebhookEvent = async (req, res) => {
+  const token = getLocals(req, LOCALS_KEYS.access_token);
   console.log("webhook event received!", req.query, req.body);
-  return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+  switch (req?.body?.object_type) {
+    case WEBHOOK_EVENT_TYPES.activity:
+      switch (req?.body?.aspect_type) {
+        case WEBHOOK_EVENTS.create:
+          // Create Notion page, check to see we haven't already
+          const payload = await strava.activities.get({
+            access_token: token,
+            id: req.body.object_id,
+          });
+          console.log("Created Activity:", JSON.stringify(payload));
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        case WEBHOOK_EVENTS.update:
+          // Update Notion page, check to see we havent already
+          const updatedActivity = await strava.activities.get({
+            access_token: token,
+            id: req.body.object_id,
+          });
+          console.log("Updated Activity:", JSON.stringify(updatedActivity));
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        case WEBHOOK_EVENTS.delete:
+          console.log("Updated Activity:", JSON.stringify(req?.body));
+          // Delete Notion Page, check to see we haven't already
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        default:
+          console.warn(
+            `WARNING: Unexpected strava aspect_type: ${req?.body?.aspect_type}`
+          );
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+      }
+    default:
+      console.warn(
+        `Warning: Unexpected strava object_type: ${req?.body?.object_type}`
+      );
+      return sendResponse(
+        res,
+        { status: 200 },
+        "EVENT_RECEIEVED, unexpected object type"
+      );
+  }
 };
 
 // test POST to our callback URL to see if it responds with 200
@@ -89,7 +152,7 @@ const recieveWebhookEvent = (req, res) => {
 
 const subscribeToWebhook = (req, res) => {
   // Your verify token. Should be a random string.
-  const VERIFY_TOKEN = req.app.locals.access_token;
+  const VERIFY_TOKEN = getLocals(req, LOCALS_KEYS.access_token);
   // Parses the query params
   let mode = req.query["hub.mode"];
   let token = req.query["hub.verify_token"];
@@ -99,7 +162,7 @@ const subscribeToWebhook = (req, res) => {
     // Verifies that the mode and token sent are valid
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
       // Responds with the challenge token from the request
-      req.app.locals.challengeId = challenge;
+      setLocals(req, LOCALS_KEYS.challengeId, challenge);
       console.log("WEBHOOK_VERIFIED", challenge);
       return res.json({ "hub.challenge": challenge });
     } else {
@@ -113,14 +176,14 @@ const subscribeToWebhook = (req, res) => {
  * Validate Subscription
  * curl -G https://BASEURL.ngrok.io/strava/webhook?hub.verify_token=VERIFY_TOKEN&hub.challenge=CHALLENGE_CODE&hub.mode=subscribe
  */
-const healthCheck = async (callbackUrl, challenge, res) => {
+const healthCheck = async (callbackUrl, challenge, res, access_token) => {
   // Test fetch to open free api
   // const response = await responseBuilder(
   //   `https://www.7timer.info/bin/astro.php?lon=113.2&lat=23.1&ac=0&unit=metric&output=json&tzshift=0`,
   //   "Error while checking health of the app"
   // );
   const response = await responseBuilder(
-    `${callbackUrl}?hub.verify_token=${req.app.locals.access_token}&hub.challenge=${challenge}&hub.mode=subscribe`,
+    `${callbackUrl}?hub.verify_token=${access_token}&hub.challenge=${challenge}&hub.mode=subscribe`,
     "Error while checking health of the app"
   );
   console.log("Health Check response:", response);
@@ -128,23 +191,28 @@ const healthCheck = async (callbackUrl, challenge, res) => {
   return sendResponse(res, response, healthCheckMessage);
 };
 
-const viewSubscription = async () => {
+const viewSubscription = async (req, res) => {
   // Test curl to view the subscription
-  //   curl -G https://www.strava.com/api/v3/push_subscriptions \
-  //       -d client_id=CLIENT_ID \
-  //       -d client_secret=CLIENT_SECRET
+  // curl -G https://www.strava.com/api/v3/push_subscriptions \
+  //     -d client_id=CLIENT_ID \
+  //     -d client_secret=CLIENT_SECRET
+  const access_token = getLocals(req, LOCALS_KEYS.access_token);
   const requestOptions = {
-    body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}`,
+    body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&verify_token=${access_token}`,
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    method: "GET",
+    method: "POST",
   };
   const response = responseBuilder(
-    "https://www.strava.com/api/v3/push_subscriptions",
-    `Error while trying to view the subscriptions.`,
-    requestOptions
+    `https://www.strava.com/api/v3/push_subscriptions?client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&verify_token=${access_token}`,
+    `Error while trying to view the subscriptions.`
   );
+  console.log("view ------->", JSON.stringify(response));
+  if (!response?.status) {
+    console.log("HERE:");
+    return sendResponse(res, { status: 200 }, "no subscriptions");
+  }
   return sendResponse(res, response, response.data);
 };
 
