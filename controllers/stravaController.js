@@ -47,7 +47,16 @@ const getActivityById = (req, id) => {
   const response = responseBuilder();
 };
 
-const getFallback = (req, res) => {
+const getFallback = async (req, res) => {
+  strava.config({
+    access_token: getLocals(req, LOCALS_KEYS.access_token),
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    redirect_uri: `${getLocals(req, LOCALS_KEYS.callbackUrl)}/auth/exchange_token`,
+  });
+  const payload = await strava.athlete.get({'access_token': getLocals(req, LOCALS_KEYS.access_token)}) //await strava.athlete.get({id: '46337708'})
+  // const response = await payload.json()
+  console.log(payload)
   return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
@@ -86,8 +95,19 @@ const postWebhookSubscription = async (req, res) => {
 };
 
 // Creates the endpoint for our webhook, supposed to be hit when an activity is created
-const recieveWebhookEvent = (req, res) => {
+const recieveWebhookEvent = async (req, res) => {
+  const token = getLocals(req, LOCALS_KEYS.access_token)
+  const redirectUri = `${getLocals(req, LOCALS_KEYS.callbackUrl)}/auth/exchange_token`
   console.log("webhook event received!", req.query, req.body);
+  console.log(`Our token is: ${token}, and the redirect is: "${redirectUri}"`)
+  strava.config({
+    access_token: token,
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    redirect_uri: redirectUri,
+  });
+  const payload = await strava.activities.get({id: req.body.object_id})
+  // console.log("DO WE HAVE IT????", JSON.stringify(payload))
   return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
 };
 
