@@ -93,17 +93,6 @@ const responseBuilder = async (url, errorMessage, options = false) => {
             status: ${response.status}
             `)
             const data = await response.json()
-            // for (let key in data){
-            //     console.log(`key: ${key}, value: ${data[key]}`)
-            //     if(key == 'errors') {
-            //         for(let key2 in data['errors']) {
-            //             for (let key3 in data['errors'][key2]) {
-            //                 console.log(`KEY: ${key3}, VALUE: ${data['errors'][key2][key3]}`)
-            //             }
-                        
-            //         }
-            //     }
-            // }
             console.log("----->",JSON.stringify(data))
             return {status: response.status, data: errorMessage}
         }
