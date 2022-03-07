@@ -39,6 +39,10 @@ const fetchOauthToken = async (code, res, req) => {
   }
 };
 
+const getFallback = (req, res) => {
+  return res.status(200).json({ message: 'Hello from the auth route'})
+}
+
 const exchangeTokens = (req, res) => {
   console.log(`GET "/exchange_token"`);
   // Log out the request just in case
@@ -53,4 +57,5 @@ const exchangeTokens = (req, res) => {
 
 module.exports = {
   exchangeTokens,
+  getFallback,
 };

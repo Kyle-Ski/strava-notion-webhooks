@@ -4,6 +4,7 @@ const LOCALS_KEYS = {
     challengeId: 'challengeId',
     expires_at: 'expires_at',
     refresh_token: 'refresh_token',
+    stravaMiddleWareInitalized: 'stravaMiddleWareInitalized',
     subscriptionId: 'subscriptionId'
 }
 
