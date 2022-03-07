@@ -1,6 +1,9 @@
 require("dotenv").config();
 const fetch = require("node-fetch");
+const { LOCALS_KEYS } = require("../constants")
+const { getLocals, setLocals } = require("../utils/localsUtils")
 const { responseBuilder } = require("../utils/httpUtils")
+const { logObject } = require("../utils/jsUtils")
 
 const fetchOauthToken = async (code, res, req) => {
   // TODO should we use the response builder for this? probably..
@@ -25,9 +28,9 @@ const fetchOauthToken = async (code, res, req) => {
     console.log("response:", response);
     // Set the app.locals for the authentication
     // TODO obfuscate these? Maybe create a getter and setter?
-    req.app.locals.expires_at = response?.expires_at
-    req.app.locals.refresh_token = response?.refresh_token
-    req.app.locals.access_token = response?.access_token
+    setLocals(req, LOCALS_KEYS.expires_at, response?.expires_at)
+    setLocals(req, LOCALS_KEYS.refresh_token, response?.refresh_token)
+    setLocals(req, LOCALS_KEYS.access_token, response?.access_token)
     res.status(200).json({message: "exchanging tokens..."})
     return response;
   } catch(e) {
@@ -36,19 +39,14 @@ const fetchOauthToken = async (code, res, req) => {
   }
 };
 
+const getFallback = (req, res) => {
+  return res.status(200).json({ message: 'Hello from the auth route'})
+}
+
 const exchangeTokens = (req, res) => {
   console.log(`GET "/exchange_token"`);
-  // TODO maybe make this into a logging function?
-  for (let key in req.params) {
-    console.log(`PARAMS: key: ${key}, value: ${req.params[key]}`);
-  }
-  for (let key in req.body) {
-    console.log(`BODY: key: ${key}, value: ${req.body[key]}`);
-  }
-  for (let key in req.query) {
-    console.log(`QUERY: key: ${key}, value: ${req.query[key]}`);
-  }
-
+  // Log out the request just in case
+  logObject(req)
   if (req.query.code) {
     return fetchOauthToken(req.query.code, res, req);
   } else {
@@ -59,4 +57,5 @@ const exchangeTokens = (req, res) => {
 
 module.exports = {
   exchangeTokens,
+  getFallback,
 };
