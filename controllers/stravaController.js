@@ -1,16 +1,13 @@
 require("dotenv").config();
 const FormData = require("form-data");
-const { LOCALS_KEYS } = require("../constants");
+const {
+  LOCALS_KEYS,
+  WEBHOOK_EVENTS,
+  WEBHOOK_EVENT_TYPES,
+} = require("../constants");
 const strava = require("strava-v3");
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
-
-// strava.config({
-//   access_token: "Your apps access token (Required for Quickstart)",
-//   client_id: "Your apps Client ID (Required for oauth)",
-//   client_secret: "Your apps Client Secret (Required for oauth)",
-//   redirect_uri: "Your apps Authorization Redirection URI (Required for oauth)",
-// });
 
 // Test curl to delete the subscription
 // curl -X DELETE https://www.strava.com/api/v3/push_subscriptions/SUBSCRIPTION_ID \
@@ -38,25 +35,11 @@ const deleteSubscription = async (req, res) => {
   sendResponse(res, response, "Delete successfull?");
 };
 
-const getActivityById = (req, id) => {
-  const token = getLocals(req, LOCALS_KEYS.access_token);
-  const getActivityUrl = `https://www.strava.com/api/v3/activities/{id}`;
-  const getOptions = {
-    Authorization: `Bearer ${token}`,
-  };
-  const response = responseBuilder();
-};
-
 const getFallback = async (req, res) => {
-  strava.config({
+  const payload = await strava.athlete.get({
     access_token: getLocals(req, LOCALS_KEYS.access_token),
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    redirect_uri: `${getLocals(req, LOCALS_KEYS.callbackUrl)}/auth/exchange_token`,
   });
-  const payload = await strava.athlete.get({'access_token': getLocals(req, LOCALS_KEYS.access_token)}) //await strava.athlete.get({id: '46337708'})
-  // const response = await payload.json()
-  console.log(payload)
+  console.log("GET /", payload);
   return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
@@ -94,21 +77,64 @@ const postWebhookSubscription = async (req, res) => {
   sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
-// Creates the endpoint for our webhook, supposed to be hit when an activity is created
+/* Webhook event example:
+{
+  aspect_type: 'delete',
+  event_time: 1646695506,
+  object_id: 6789384442,
+  object_type: 'activity',
+  owner_id: 46337708,
+  subscription_id: 213604,
+  updates: {}
+}*/
+/**
+ * Creates the endpoint for our webhook, supposed to be hit when an activity is created
+ * @param {Object} req req object from the route
+ * @param {Object} res res object from the route
+ * @returns
+ */
 const recieveWebhookEvent = async (req, res) => {
-  const token = getLocals(req, LOCALS_KEYS.access_token)
-  const redirectUri = `${getLocals(req, LOCALS_KEYS.callbackUrl)}/auth/exchange_token`
+  const token = getLocals(req, LOCALS_KEYS.access_token);
   console.log("webhook event received!", req.query, req.body);
-  console.log(`Our token is: ${token}, and the redirect is: "${redirectUri}"`)
-  strava.config({
-    access_token: token,
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    redirect_uri: redirectUri,
-  });
-  const payload = await strava.activities.get({id: req.body.object_id})
-  // console.log("DO WE HAVE IT????", JSON.stringify(payload))
-  return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+  switch (req?.body?.object_type) {
+    case WEBHOOK_EVENT_TYPES.activity:
+      switch (req?.body?.aspect_type) {
+        case WEBHOOK_EVENTS.create:
+          // Create Notion page, check to see we haven't already
+          const payload = await strava.activities.get({
+            access_token: token,
+            id: req.body.object_id,
+          });
+          console.log("Created Activity:", JSON.stringify(payload));
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        case WEBHOOK_EVENTS.update:
+          // Update Notion page, check to see we havent already
+          const updatedActivity = await strava.activities.get({
+            access_token: token,
+            id: req.body.object_id,
+          });
+          console.log("Updated Activity:", JSON.stringify(updatedActivity));
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        case WEBHOOK_EVENTS.delete:
+          console.log("Updated Activity:", JSON.stringify(req?.body));
+          // Delete Notion Page, check to see we haven't already
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+        default:
+          console.warn(
+            `WARNING: Unexpected strava aspect_type: ${req?.body?.aspect_type}`
+          );
+          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+      }
+    default:
+      console.warn(
+        `Warning: Unexpected strava object_type: ${req?.body?.object_type}`
+      );
+      return sendResponse(
+        res,
+        { status: 200 },
+        "EVENT_RECEIEVED, unexpected object type"
+      );
+  }
 };
 
 // test POST to our callback URL to see if it responds with 200
