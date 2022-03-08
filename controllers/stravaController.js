@@ -5,9 +5,60 @@ const {
   WEBHOOK_EVENTS,
   WEBHOOK_EVENT_TYPES,
 } = require("../constants");
-const strava = require("strava-v3");
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
+const strava = require("strava-v3");
+const { Client, LogLevel } = require("@notionhq/client");
+const notion = new Client({
+  auth: process.env.NOTION_KEY,
+  logLevel: LogLevel.DEBUG,
+});
+
+async function addItem({title, id}) {
+  // Add destructuring?
+  try {
+    const response = await notion.pages.create({
+      parent: { database_id: process.env.NOTION_DATABASE_ID },
+      properties: {
+        Name: {
+          title: [
+            {
+              text: {
+                content: title,
+              },
+            },
+          ],
+        },
+        strava_id: {
+          rich_text: [
+            {
+              text: {
+                content: id,
+              },
+            },
+          ],
+        },
+        // Date: {??},
+        // Day: {
+        //   multi_select: {
+        //     name: dayVariable // need to make this reflecting on what the actual day is 
+        //   }
+        // },
+        Category: {
+          select: {
+            name: "Habits" // Turn into constant?
+          }
+        },
+        // "Weight Category": {},
+      },
+    });
+    console.log(response);
+    console.log("Success! Entry added.");
+  } catch (error) {
+    console.error(`Error testing notion sdk: ${error.body}`);
+    return res.status(500).json({ message: `Error testing notion sdk...` });
+  }
+}
 
 // Test curl to delete the subscription
 // curl -X DELETE https://www.strava.com/api/v3/push_subscriptions/SUBSCRIPTION_ID \
@@ -105,6 +156,7 @@ const recieveWebhookEvent = async (req, res) => {
             access_token: token,
             id: req.body.object_id,
           });
+          addItem({title: payload.name, id: JSON.stringify(payload.id)});
           console.log("Created Activity:", JSON.stringify(payload));
           return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
         case WEBHOOK_EVENTS.update:
