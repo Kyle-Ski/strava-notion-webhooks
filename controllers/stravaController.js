@@ -14,8 +14,30 @@ const notion = new Client({
   logLevel: LogLevel.DEBUG,
 });
 
-async function addItem({title, id}) {
+const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
+
+async function addItem({
+  title,
+  id,
+  startDate,
+  distance,
+  elevationGain,
+  type,
+  averageHeartRate,
+  maxHeartRate,
+  maxElevation,
+  minElevation,
+  averageSpeed,
+}) {
   // Add destructuring?
+  let categoryType = ""
+  switch(type) {
+    case "Hike":
+      categoryType = "Hikes"
+    default:
+      categoryType = "Habits"
+  }
+  
   try {
     const response = await notion.pages.create({
       parent: { database_id: process.env.NOTION_DATABASE_ID },
@@ -38,16 +60,41 @@ async function addItem({title, id}) {
             },
           ],
         },
-        // Date: {??},
+        Date: {
+          date: {
+            start: startDate,
+          },
+        },
+        Distance: {
+          number: distance
+        },
         // Day: {
         //   multi_select: {
-        //     name: dayVariable // need to make this reflecting on what the actual day is 
+        //     name: dayVariable // need to make this reflecting on what the actual day is
         //   }
         // },
         Category: {
           select: {
-            name: "Habits" // Turn into constant?
-          }
+            name: categoryType, // Turn into constant?
+          },
+        },
+        "Min Elevation": {
+          number: minElevation
+        },
+        "Average Speed": {
+          number: averageSpeed
+        },
+        "Max Heart Rate": {
+          number: maxHeartRate
+        },
+        "Max Elevation": {
+          number: maxElevation
+        },
+        "Elevation Gain": {
+          number: elevationGain
+        },
+        "Average Heart Rate": {
+          number: averageHeartRate
         },
         // "Weight Category": {},
       },
@@ -66,7 +113,7 @@ async function addItem({title, id}) {
 //     -F client_secret=CLIENT_SECRET
 
 const deleteSubscription = async (req, res) => {
-  const subscriptionId = getLocals(req, LOCALS_KEYS.subscriptionId);
+  const subscriptionId = getLocals(req, SUBSCRIPTION_ID);
   console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
   body.append("client_id", process.env.CLIENT_ID);
@@ -87,15 +134,19 @@ const deleteSubscription = async (req, res) => {
 };
 
 const getFallback = async (req, res) => {
-  const payload = await strava.athlete.get({
+  const payload = await strava.activities.get({
     access_token: getLocals(req, LOCALS_KEYS.access_token),
+    id: "6606840419",
   });
+  // const payload = await strava.athlete.listActivities({
+  //   access_token: getLocals(req, LOCALS_KEYS.access_token),
+  // });
   console.log("GET /", payload);
   return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
 const postWebhookSubscription = async (req, res) => {
-  const baseUrl = getLocals(req, LOCALS_KEYS.callbackUrl);
+  const baseUrl = getLocals(req, CALLBACK_URL);
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
   //     https://www.strava.com/api/v3/push_subscriptions \
@@ -105,7 +156,7 @@ const postWebhookSubscription = async (req, res) => {
   //     -F verify_token=VERIFY_TOKEN
   const body = new FormData();
   const callback = `${baseUrl}/strava/webhook`;
-  const token = getLocals(req, LOCALS_KEYS.access_token);
+  const token = getLocals(req, ACCESS_TOKEN);
   body.append("client_id", process.env.CLIENT_ID);
   body.append("client_secret", process.env.CLIENT_SECRET);
   body.append("callback_url", callback);
@@ -123,7 +174,7 @@ const postWebhookSubscription = async (req, res) => {
   );
   console.log("SUBSCRIBE RESPONSE:", response);
   if (response.status == 200 && response?.data?.id != undefined) {
-    setLocals(req, LOCALS_KEYS.subscriptionId, response?.data?.id);
+    setLocals(req, SUBSCRIPTION_ID, response?.data?.id);
   }
   sendResponse(res, response, "Does I need to be sendng this response?");
 };
@@ -156,7 +207,19 @@ const recieveWebhookEvent = async (req, res) => {
             access_token: token,
             id: req.body.object_id,
           });
-          addItem({title: payload.name, id: JSON.stringify(payload.id)});
+          addItem({
+            title: payload.name,
+            id: JSON.stringify(payload?.id),
+            startDate: payload?.start_date_local,
+            distance: payload?.distance,
+            elevationGain: payload?.total_elevation_gain,
+            type: payload?.type,
+            averageHeartRate: payload?.average_heart_rate,
+            maxHeartRate: payload?.maxHeartRate,
+            maxElevation: payload?.elev_high,
+            minElevation: payload?.elev_low,
+            averageSpeed: payload?.average_speed,
+          });
           console.log("Created Activity:", JSON.stringify(payload));
           return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
         case WEBHOOK_EVENTS.update:
@@ -204,7 +267,7 @@ const recieveWebhookEvent = async (req, res) => {
 
 const subscribeToWebhook = (req, res) => {
   // Your verify token. Should be a random string.
-  const VERIFY_TOKEN = getLocals(req, LOCALS_KEYS.access_token);
+  const VERIFY_TOKEN = getLocals(req, LOCALS_KEYS.ACCESS_TOKEN);
   // Parses the query params
   let mode = req.query["hub.mode"];
   let token = req.query["hub.verify_token"];
@@ -248,7 +311,7 @@ const viewSubscription = async (req, res) => {
   // curl -G https://www.strava.com/api/v3/push_subscriptions \
   //     -d client_id=CLIENT_ID \
   //     -d client_secret=CLIENT_SECRET
-  const access_token = getLocals(req, LOCALS_KEYS.access_token);
+  const access_token = getLocals(req, LOCALS_KEYS.ACCESS_TOKEN);
   const requestOptions = {
     body: `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&verify_token=${access_token}`,
     headers: {

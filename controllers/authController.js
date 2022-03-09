@@ -30,7 +30,7 @@ const fetchOauthToken = async (code, res, req) => {
     // TODO obfuscate these? Maybe create a getter and setter?
     setLocals(req, LOCALS_KEYS.expires_at, response?.expires_at)
     setLocals(req, LOCALS_KEYS.refresh_token, response?.refresh_token)
-    setLocals(req, LOCALS_KEYS.access_token, response?.access_token)
+    setLocals(req, LOCALS_KEYS.ACCESS_TOKEN, response?.access_token)
     res.status(200).json({message: "exchanging tokens..."})
     return response;
   } catch(e) {
