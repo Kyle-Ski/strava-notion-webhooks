@@ -1,6 +1,5 @@
 require("dotenv").config();
 const { Client, LogLevel } = require("@notionhq/client");
-const res = require("express/lib/response");
 const notion = new Client({
   auth: process.env.NOTION_KEY,
   logLevel: LogLevel.DEBUG,
@@ -25,13 +24,22 @@ async function addItem(text) {
             },
           ],
         },
+        Date: {
+          date: {
+            start: "2022-01-30T09:58:22Z",
+            time_zone: 'America/Denver'
+          },
+        },
+        "Min Elevation": {
+          number: 999
+        },
       },
     });
     console.log(response);
     console.log("Success! Entry added.");
   } catch (error) {
     console.error(`Error testing notion sdk: ${error.body}`);
-    return res.status(500).json({message: `Error testing notion sdk...`})
+    // return res.status(500).json({message: `Error testing notion sdk...`})
   }
 }
 
