@@ -7,6 +7,7 @@ const {
 } = require("../constants");
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
+const { metersPerSecToMph, metersToFeet, metersToMiles } = require("../utils/unitConversionUtils");
 const strava = require("strava-v3");
 const { Client, LogLevel } = require("@notionhq/client");
 const notion = new Client({
@@ -16,6 +17,7 @@ const notion = new Client({
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
 
+// TODO, this needs to see if we haven't already created this?
 async function addItem({
   title,
   id,
@@ -30,15 +32,18 @@ async function addItem({
   averageSpeed,
 }) {
   // Add destructuring?
-  let categoryType = ""
-  switch(type) {
+  let categoryType = "";
+  switch (type) {
     case "Hike":
-      categoryType = "Hikes"
+      categoryType = "Hikes";
     default:
-      categoryType = "Habits"
+      categoryType = "Habits";
   }
-  
+
   try {
+    // if (strava_id === undefined) {
+    //   throw new Error("Error Creating Notion Page in addItem(): `strava_id` was undefined")
+    // }
     const response = await notion.pages.create({
       parent: { database_id: process.env.NOTION_DATABASE_ID },
       properties: {
@@ -66,7 +71,7 @@ async function addItem({
           },
         },
         Distance: {
-          number: distance
+          number: distance,
         },
         // Day: {
         //   multi_select: {
@@ -79,31 +84,63 @@ async function addItem({
           },
         },
         "Min Elevation": {
-          number: minElevation
+          number: minElevation,
         },
         "Average Speed": {
-          number: averageSpeed
+          number: averageSpeed,
         },
         "Max Heart Rate": {
-          number: maxHeartRate
+          number: maxHeartRate,
         },
         "Max Elevation": {
-          number: maxElevation
+          number: maxElevation,
         },
         "Elevation Gain": {
-          number: elevationGain
+          number: elevationGain,
         },
         "Average Heart Rate": {
-          number: averageHeartRate
+          number: averageHeartRate,
         },
-        // "Weight Category": {},
+        "Weight Category": {
+          select: {
+            name: "Cardio" // Need to make this into switch case depending on strava activity?
+          }
+        },
       },
     });
     console.log(response);
     console.log("Success! Entry added.");
   } catch (error) {
-    console.error(`Error testing notion sdk: ${error.body}`);
-    return res.status(500).json({ message: `Error testing notion sdk...` });
+    console.error(`Error creating page with notion sdk: ${error.body}`);
+  }
+}
+
+async function getActivityById(id, token) {
+  try {
+    const payload = await strava.activities.get({
+      access_token: token,
+      id,
+    });
+    return payload;
+  } catch (e) {
+    console.warn(`
+      getActivityById()
+      Error getting strava activity by id: ${id}
+      ERROR: ${e}
+    `);
+    return false
+  }
+}
+
+async function listAllActivities() {
+  try {
+    const payload = await strava.athlete.listActivities({
+      access_token: getLocals(req, LOCALS_KEYS.ACCESS_TOKEN),
+    });
+    return payload
+  } catch (e) {
+    console.warn("Error listing all activities")
+    return false
   }
 }
 
@@ -134,14 +171,11 @@ const deleteSubscription = async (req, res) => {
 };
 
 const getFallback = async (req, res) => {
-  const payload = await strava.activities.get({
-    access_token: getLocals(req, LOCALS_KEYS.access_token),
-    id: "6606840419",
-  });
-  // const payload = await strava.athlete.listActivities({
-  //   access_token: getLocals(req, LOCALS_KEYS.access_token),
-  // });
+  const payload = await getActivityById("6606840419", getLocals(req, LOCALS_KEYS.ACCESS_TOKEN))
   console.log("GET /", payload);
+  if (!payload) {
+    return sendResponse(res, {status: 500}, "Error getting strava activity for '/'")
+  }
   return sendResponse(res, { status: 200 }, "hello from the strava route");
 };
 
@@ -175,8 +209,10 @@ const postWebhookSubscription = async (req, res) => {
   console.log("SUBSCRIBE RESPONSE:", response);
   if (response.status == 200 && response?.data?.id != undefined) {
     setLocals(req, SUBSCRIPTION_ID, response?.data?.id);
+    sendResponse(res, response, "Subscription Sucess!");
+  } else {
+    console.warn(`Error subscribing to webhook, Status: ${response.status}`);
   }
-  sendResponse(res, response, "Does I need to be sendng this response?");
 };
 
 /* Webhook event example:
@@ -196,34 +232,34 @@ const postWebhookSubscription = async (req, res) => {
  * @returns
  */
 const recieveWebhookEvent = async (req, res) => {
-  const token = getLocals(req, LOCALS_KEYS.access_token);
+  const token = getLocals(req, LOCALS_KEYS.ACCESS_TOKEN);
   console.log("webhook event received!", req.query, req.body);
   switch (req?.body?.object_type) {
     case WEBHOOK_EVENT_TYPES.activity:
       switch (req?.body?.aspect_type) {
         case WEBHOOK_EVENTS.create:
           // Create Notion page, check to see we haven't already
-          const payload = await strava.activities.get({
-            access_token: token,
-            id: req.body.object_id,
-          });
-          addItem({
-            title: payload.name,
+          const payload = await getActivityById(req.body.object_id, token)
+          const newNotionPage = {
+            title: payload?.name,
             id: JSON.stringify(payload?.id),
             startDate: payload?.start_date_local,
-            distance: payload?.distance,
-            elevationGain: payload?.total_elevation_gain,
+            distance: metersToMiles(payload?.distance),
+            elevationGain: metersToFeet(payload?.total_elevation_gain),
             type: payload?.type,
-            averageHeartRate: payload?.average_heart_rate,
-            maxHeartRate: payload?.maxHeartRate,
-            maxElevation: payload?.elev_high,
-            minElevation: payload?.elev_low,
-            averageSpeed: payload?.average_speed,
-          });
-          console.log("Created Activity:", JSON.stringify(payload));
+            averageHeartRate: payload?.average_heartrate,
+            maxHeartRate: payload?.max_heartrate,
+            maxElevation: metersToFeet(payload?.elev_high),
+            minElevation: metersToFeet(payload?.elev_low),
+            averageSpeed: metersPerSecToMph(payload?.average_speed),
+          }
+          addItem(newNotionPage);
+          console.log("Attempting to add:", newNotionPage)
+          // console.log("Created Activity:", JSON.stringify(payload));
           return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
         case WEBHOOK_EVENTS.update:
           // Update Notion page, check to see we havent already
+          // Updates will be contained in req.body.updates
           const updatedActivity = await strava.activities.get({
             access_token: token,
             id: req.body.object_id,
@@ -254,7 +290,7 @@ const recieveWebhookEvent = async (req, res) => {
 
 // test POST to our callback URL to see if it responds with 200
 //   curl -X POST \
-//    https://8765-65-156-41-108.ngrok.io/strava/webhook \
+//    https://BASE_URL/strava/webhook \
 //    -H ‘Content-Type: application/json’ \
 //    -d ‘{
 //         “aspect_type”: “create”,

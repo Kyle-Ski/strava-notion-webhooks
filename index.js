@@ -27,7 +27,7 @@ const connectNgrok = async (port) => {
     app.locals.callbackUrl = url;
     console.log(
       "url:",
-      url,
+      url.split("https://")[1],
       `Auth URL: ${`https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`}`
     );
     return;
