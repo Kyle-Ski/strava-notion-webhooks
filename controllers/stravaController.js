@@ -16,9 +16,78 @@ const notion = new Client({
 });
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
+const stravaFilter = {
+  and: [{ property: 'strava_id', rich_text: { is_not_empty: true } }],
+}
 
+
+const fmtCategoryType = (type) => {
+  let categoryType = "";
+  console.log(`Formatting Category Type ${type}`)
+  switch (type) {
+    case "Hike":
+      categoryType = "Hikes";
+      return categoryType
+    default:
+      categoryType = "Habits";
+      return categoryType
+  }
+}
+
+const fmtWeightCategoryType = (type) => {
+  console.log(`Formatting Weight Category Type ${type}`)
+  switch (type) {
+    case "Alpine Ski":
+    case "Backcountry Ski":
+    case "Hike":
+    case "Run":
+      return "Cardio"
+    case "Walk":
+      return "Rest"
+    case "Weight Training":
+      return "Weights"
+    default:
+      return "Cardio"
+  }
+}
+
+function getDatabaseQueryConfig (
+  cursor = null,
+  pageSize = null,
+  database_id = process.env.NOTION_DATABASE_ID
+) {
+  const config = {
+    database_id,
+  }
+
+  if (cursor != null) {
+    config['start_cursor'] = cursor
+  }
+
+  if (pageSize != null) {
+    config['page_size'] = pageSize
+  }
+
+  return config
+}
+
+const getAllStravaPages = async () => {
+  const config = getDatabaseQueryConfig()
+  config.filter = stravaFilter
+  let response = await notion.databases.query(config);
+  let responseArray = [...response.results]
+  while (response.has_more) {
+    // continue to query if next_cursor is returned
+    const config1 = getDatabaseQueryConfig(response.next_cursor)
+    config1.filter = stravaFilter
+    response = await notion.databases.query(config1)
+    responseArray = [...responseArray, ...response.results]
+  }
+  console.log("all things?",JSON.stringify(responseArray))
+  return responseArray
+}
 // TODO, this needs to see if we haven't already created this?
-async function addItem({
+const addItem = async ({
   title,
   id,
   startDate,
@@ -30,16 +99,10 @@ async function addItem({
   maxElevation,
   minElevation,
   averageSpeed,
-}) {
+}) => {
   // Add destructuring?
-  let categoryType = "";
-  switch (type) {
-    case "Hike":
-      categoryType = "Hikes";
-    default:
-      categoryType = "Habits";
-  }
-
+  let categoryType = fmtCategoryType(type)
+  let weightCategoryType = fmtWeightCategoryType(type)
   try {
     // if (strava_id === undefined) {
     //   throw new Error("Error Creating Notion Page in addItem(): `strava_id` was undefined")
@@ -103,7 +166,7 @@ async function addItem({
         },
         "Weight Category": {
           select: {
-            name: "Cardio" // Need to make this into switch case depending on strava activity?
+            name: weightCategoryType
           }
         },
       },
@@ -140,6 +203,26 @@ async function listAllActivities() {
     return payload
   } catch (e) {
     console.warn("Error listing all activities")
+    return false
+  }
+}
+
+const deleteNotionPage = async (id) => {
+  try {
+    const allStravaNotionPages = await getAllStravaPages()
+    //6797788852
+    const notionIdToDelete = allStravaNotionPages.filter(activity => activity.properties.strava_id.rich_text[0].text.content == id)
+    if (notionIdToDelete.length > 0) {
+      const response = await notion.pages.update({
+        page_id: notionIdToDelete[0]?.id,
+        archived: true
+      })
+      console.log("response:", response)
+    } else {
+      throw new Error("Couldn't find notion id to delete with matching strava_id:", id)
+    }
+  } catch (e) {
+    console.warn("Error listing all notion pages:", e)
     return false
   }
 }
@@ -267,7 +350,8 @@ const recieveWebhookEvent = async (req, res) => {
           console.log("Updated Activity:", JSON.stringify(updatedActivity));
           return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
         case WEBHOOK_EVENTS.delete:
-          console.log("Updated Activity:", JSON.stringify(req?.body));
+          const allThings = await deleteNotionPage(req?.body?.object_id)
+          console.log("Delete Activity:", JSON.stringify(req?.body), JSON.stringify(allThings));
           // Delete Notion Page, check to see we haven't already
           return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
         default:
