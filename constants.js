@@ -21,7 +21,7 @@ const WEBHOOK_EVENT_TYPES = { // Strava webhook activity events
 
 /**
  * strava.activities.get({
-    access_token: getLocals(req, LOCALS_KEYS.access_token),
+    access_token: getLocals(req, LOCALS_KEYS.ACCESS_TOKEN),
     id: "6606840419",
   });
  */
