@@ -7,230 +7,16 @@ const {
 } = require("../constants");
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
-const { metersPerSecToMph, metersToFeet, metersToMiles } = require("../utils/unitConversionUtils");
-const strava = require("strava-v3");
-const { Client, LogLevel } = require("@notionhq/client");
-const notion = new Client({
-  auth: process.env.NOTION_KEY,
-  logLevel: LogLevel.DEBUG,
-});
+const {
+  metersPerSecToMph,
+  metersToFeet,
+  metersToMiles,
+} = require("../utils/unitConversionUtils");
+const { addNotionItem, deleteNotionPage } = require("../utils/notionUtils");
+const { fmtUpdate } = require("../utils/fmtUtils");
+const { getActivityById } = require("../utils/stravaUtils");
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
-const stravaFilter = {
-  and: [{ property: 'strava_id', rich_text: { is_not_empty: true } }],
-}
-
-
-const fmtCategoryType = (type) => {
-  let categoryType = "";
-  console.log(`Formatting Category Type ${type}`)
-  switch (type) {
-    case "Hike":
-      categoryType = "Hikes";
-      return categoryType
-    default:
-      categoryType = "Habits";
-      return categoryType
-  }
-}
-
-const fmtWeightCategoryType = (type) => {
-  console.log(`Formatting Weight Category Type ${type}`)
-  switch (type) {
-    case "Alpine Ski":
-    case "Backcountry Ski":
-    case "Hike":
-    case "Run":
-      return "Cardio"
-    case "Walk":
-      return "Rest"
-    case "Weight Training":
-      return "Weights"
-    default:
-      return "Cardio"
-  }
-}
-
-function getDatabaseQueryConfig (
-  cursor = null,
-  pageSize = null,
-  database_id = process.env.NOTION_DATABASE_ID
-) {
-  const config = {
-    database_id,
-  }
-
-  if (cursor != null) {
-    config['start_cursor'] = cursor
-  }
-
-  if (pageSize != null) {
-    config['page_size'] = pageSize
-  }
-
-  return config
-}
-
-const getAllStravaPages = async () => {
-  const config = getDatabaseQueryConfig()
-  config.filter = stravaFilter
-  let response = await notion.databases.query(config);
-  let responseArray = [...response.results]
-  while (response.has_more) {
-    // continue to query if next_cursor is returned
-    const config1 = getDatabaseQueryConfig(response.next_cursor)
-    config1.filter = stravaFilter
-    response = await notion.databases.query(config1)
-    responseArray = [...responseArray, ...response.results]
-  }
-  console.log("all things?",JSON.stringify(responseArray))
-  return responseArray
-}
-// TODO, this needs to see if we haven't already created this?
-const addItem = async ({
-  title,
-  id,
-  startDate,
-  distance,
-  elevationGain,
-  type,
-  averageHeartRate,
-  maxHeartRate,
-  maxElevation,
-  minElevation,
-  averageSpeed,
-}) => {
-  // Add destructuring?
-  let categoryType = fmtCategoryType(type)
-  let weightCategoryType = fmtWeightCategoryType(type)
-  try {
-    // if (strava_id === undefined) {
-    //   throw new Error("Error Creating Notion Page in addItem(): `strava_id` was undefined")
-    // }
-    const response = await notion.pages.create({
-      parent: { database_id: process.env.NOTION_DATABASE_ID },
-      properties: {
-        Name: {
-          title: [
-            {
-              text: {
-                content: title,
-              },
-            },
-          ],
-        },
-        strava_id: {
-          rich_text: [
-            {
-              text: {
-                content: id,
-              },
-            },
-          ],
-        },
-        Date: {
-          date: {
-            start: startDate,
-          },
-        },
-        Distance: {
-          number: distance,
-        },
-        // Day: {
-        //   multi_select: {
-        //     name: dayVariable // need to make this reflecting on what the actual day is
-        //   }
-        // },
-        Category: {
-          select: {
-            name: categoryType, // Turn into constant?
-          },
-        },
-        "Min Elevation": {
-          number: minElevation,
-        },
-        "Average Speed": {
-          number: averageSpeed,
-        },
-        "Max Heart Rate": {
-          number: maxHeartRate,
-        },
-        "Max Elevation": {
-          number: maxElevation,
-        },
-        "Elevation Gain": {
-          number: elevationGain,
-        },
-        "Average Heart Rate": {
-          number: averageHeartRate,
-        },
-        "Weight Category": {
-          select: {
-            name: weightCategoryType
-          }
-        },
-      },
-    });
-    console.log(response);
-    console.log("Success! Entry added.");
-  } catch (error) {
-    console.error(`Error creating page with notion sdk: ${error.body}`);
-  }
-}
-
-async function getActivityById(id, token) {
-  try {
-    const payload = await strava.activities.get({
-      access_token: token,
-      id,
-    });
-    return payload;
-  } catch (e) {
-    console.warn(`
-      getActivityById()
-      Error getting strava activity by id: ${id}
-      ERROR: ${e}
-    `);
-    return false
-  }
-}
-
-async function listAllActivities() {
-  try {
-    const payload = await strava.athlete.listActivities({
-      access_token: getLocals(req, LOCALS_KEYS.ACCESS_TOKEN),
-    });
-    return payload
-  } catch (e) {
-    console.warn("Error listing all activities")
-    return false
-  }
-}
-
-const deleteNotionPage = async (id) => {
-  try {
-    const allStravaNotionPages = await getAllStravaPages()
-    //6797788852
-    const notionIdToDelete = allStravaNotionPages.filter(activity => activity.properties.strava_id.rich_text[0].text.content == id)
-    if (notionIdToDelete.length > 0) {
-      const response = await notion.pages.update({
-        page_id: notionIdToDelete[0]?.id,
-        archived: true
-      })
-      console.log("response:", response)
-    } else {
-      throw new Error("Couldn't find notion id to delete with matching strava_id:", id)
-    }
-  } catch (e) {
-    console.warn("Error listing all notion pages:", e)
-    return false
-  }
-}
-
-// Test curl to delete the subscription
-// curl -X DELETE https://www.strava.com/api/v3/push_subscriptions/SUBSCRIPTION_ID \
-//     -F client_id=CLIENT_ID \
-//     -F client_secret=CLIENT_SECRET
 
 const deleteSubscription = async (req, res) => {
   const subscriptionId = getLocals(req, SUBSCRIPTION_ID);
@@ -250,16 +36,27 @@ const deleteSubscription = async (req, res) => {
     requestOptions
   );
 
-  sendResponse(res, response, "Delete successfull?");
+  sendResponse(res, response, { message: "Delete successfull?" });
 };
 
 const getFallback = async (req, res) => {
-  const payload = await getActivityById("6606840419", getLocals(req, LOCALS_KEYS.ACCESS_TOKEN))
+  const payload = await getActivityById(
+    "6606840419",
+    getLocals(req, LOCALS_KEYS.ACCESS_TOKEN)
+  );
   console.log("GET /", payload);
   if (!payload) {
-    return sendResponse(res, {status: 500}, "Error getting strava activity for '/'")
+    return sendResponse(
+      res,
+      { status: 500 },
+      { message: "Error getting strava activity for '/'" }
+    );
   }
-  return sendResponse(res, { status: 200 }, "hello from the strava route");
+  return sendResponse(
+    res,
+    { status: 200 },
+    { message: "hello from the strava route" }
+  );
 };
 
 const postWebhookSubscription = async (req, res) => {
@@ -292,7 +89,13 @@ const postWebhookSubscription = async (req, res) => {
   console.log("SUBSCRIBE RESPONSE:", response);
   if (response.status == 200 && response?.data?.id != undefined) {
     setLocals(req, SUBSCRIPTION_ID, response?.data?.id);
-    sendResponse(res, response, "Subscription Sucess!");
+    sendResponse(res, response, {
+      message: "Subscription Sucess!",
+      deleteSubscription: `${getLocals(
+        req,
+        LOCALS_KEYS.CALLBACK_URL
+      )}/strava/subscribe/delete`,
+    });
   } else {
     console.warn(`Error subscribing to webhook, Status: ${response.status}`);
   }
@@ -322,8 +125,9 @@ const recieveWebhookEvent = async (req, res) => {
       switch (req?.body?.aspect_type) {
         case WEBHOOK_EVENTS.create:
           // Create Notion page, check to see we haven't already
-          const payload = await getActivityById(req.body.object_id, token)
+          const payload = await getActivityById(req.body.object_id, token);
           const newNotionPage = {
+            // we should use fmtUpdate()?
             title: payload?.name,
             id: JSON.stringify(payload?.id),
             startDate: payload?.start_date_local,
@@ -335,30 +139,52 @@ const recieveWebhookEvent = async (req, res) => {
             maxElevation: metersToFeet(payload?.elev_high),
             minElevation: metersToFeet(payload?.elev_low),
             averageSpeed: metersPerSecToMph(payload?.average_speed),
-          }
-          addItem(newNotionPage);
-          console.log("Attempting to add:", newNotionPage)
+          };
+          addNotionItem(newNotionPage);
+          console.log("Attempting to add:", newNotionPage);
           // console.log("Created Activity:", JSON.stringify(payload));
-          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+          return sendResponse(
+            res,
+            { status: 200 },
+            { message: "EVENT_RECEIEVED" }
+          );
         case WEBHOOK_EVENTS.update:
           // Update Notion page, check to see we havent already
           // Updates will be contained in req.body.updates
-          const updatedActivity = await strava.activities.get({
-            access_token: token,
-            id: req.body.object_id,
-          });
-          console.log("Updated Activity:", JSON.stringify(updatedActivity));
-          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+          const updatedActivity = await getActivityById(
+            req?.body?.object_id,
+            token
+          );
+          console.log("---->", JSON.stringify(updatedActivity));
+          const thingsToUpdate = await fmtUpdate(updatedActivity);
+          console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
+          return sendResponse(
+            res,
+            { status: 200 },
+            { message: "EVENT_RECEIEVED" }
+          );
         case WEBHOOK_EVENTS.delete:
-          const allThings = await deleteNotionPage(req?.body?.object_id)
-          console.log("Delete Activity:", JSON.stringify(req?.body), JSON.stringify(allThings));
+          const allThings = await deleteNotionPage(req?.body?.object_id);
+          console.log(
+            "Delete Activity:",
+            JSON.stringify(req?.body),
+            JSON.stringify(allThings)
+          );
           // Delete Notion Page, check to see we haven't already
-          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+          return sendResponse(
+            res,
+            { status: 200 },
+            { message: "EVENT_RECEIEVED" }
+          );
         default:
           console.warn(
             `WARNING: Unexpected strava aspect_type: ${req?.body?.aspect_type}`
           );
-          return sendResponse(res, { status: 200 }, "EVENT_RECEIEVED");
+          return sendResponse(
+            res,
+            { status: 200 },
+            { message: "EVENT_RECEIEVED" }
+          );
       }
     default:
       console.warn(
@@ -367,7 +193,7 @@ const recieveWebhookEvent = async (req, res) => {
       return sendResponse(
         res,
         { status: 200 },
-        "EVENT_RECEIEVED, unexpected object type"
+        { message: "EVENT_RECEIEVED, unexpected object type" }
       );
   }
 };
@@ -423,7 +249,7 @@ const healthCheck = async (callbackUrl, challenge, res, access_token) => {
   );
   console.log("Health Check response:", response);
   const healthCheckMessage = "Health check complete, everything looking ok.";
-  return sendResponse(res, response, healthCheckMessage);
+  return sendResponse(res, response, { message: healthCheckMessage });
 };
 
 const viewSubscription = async (req, res) => {
@@ -446,9 +272,9 @@ const viewSubscription = async (req, res) => {
   console.log("view ------->", JSON.stringify(response));
   if (!response?.status) {
     console.log("HERE:");
-    return sendResponse(res, { status: 200 }, "no subscriptions");
+    return sendResponse(res, { status: 200 }, { message: "no subscriptions" });
   }
-  return sendResponse(res, response, response.data);
+  return sendResponse(res, response, { message: response.data });
 };
 
 module.exports = {
