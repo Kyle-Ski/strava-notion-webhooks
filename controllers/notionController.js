@@ -10,7 +10,11 @@ const {
   metersToMiles,
 } = require("../utils/unitConversionUtils");
 
-const getFallback = (req, res) => {
+const stravaFilter = {
+  and: [{ property: 'strava_id', rich_text: { is_not_empty: true } }],
+}
+
+const getFallback = async (req, res) => {
   const testResponse = {
     resource_state: 3,
     athlete: { id: 46337708, resource_state: 1 },
@@ -128,9 +132,42 @@ const getFallback = (req, res) => {
     minElevation: metersToFeet(testResponse?.elev_low),
     averageSpeed: metersPerSecToMph(testResponse?.average_speed),
   };
-  addItem(newItem);
+  // addItem(newItem);
+  const config = getDatabaseQueryConfig()
+  config.filter = stravaFilter
+  let response = await notion.databases.query(config);
+  let responseArray = [...response.results]
+  while (response.has_more) {
+    // continue to query if next_cursor is returned
+    const config1 = getDatabaseQueryConfig(response.next_cursor)
+    config1.filter = stravaFilter
+    response = await notion.databases.query(config1)
+    responseArray = [...responseArray, ...response.results]
+  }
+  const found = responseArray.filter(activity => activity.properties.strava_id.rich_text[0].text.content == '6797788852')[0]?.id
+  console.log("all things?",found, JSON.stringify(responseArray))
   return res.status(200).json({ message: "hello from the notion route" });
 };
+
+function getDatabaseQueryConfig (
+  cursor = null,
+  pageSize = null,
+  database_id = process.env.NOTION_DATABASE_ID
+) {
+  const config = {
+    database_id,
+  }
+
+  if (cursor != null) {
+    config['start_cursor'] = cursor
+  }
+
+  if (pageSize != null) {
+    config['page_size'] = pageSize
+  }
+
+  return config
+}
 
 async function addItem({
   title,
