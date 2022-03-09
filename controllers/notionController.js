@@ -11,8 +11,8 @@ const {
 } = require("../utils/unitConversionUtils");
 
 const stravaFilter = {
-  and: [{ property: 'strava_id', rich_text: { is_not_empty: true } }],
-}
+  and: [{ property: "strava_id", rich_text: { is_not_empty: true } }],
+};
 
 const getFallback = async (req, res) => {
   const testResponse = {
@@ -132,44 +132,47 @@ const getFallback = async (req, res) => {
     minElevation: metersToFeet(testResponse?.elev_low),
     averageSpeed: metersPerSecToMph(testResponse?.average_speed),
   };
-  // addItem(newItem);
-  const config = getDatabaseQueryConfig()
-  config.filter = stravaFilter
+  // addNotionItem(newItem);
+  const config = getDatabaseQueryConfig();
+  config.filter = stravaFilter;
   let response = await notion.databases.query(config);
-  let responseArray = [...response.results]
+  let responseArray = [...response.results];
   while (response.has_more) {
     // continue to query if next_cursor is returned
-    const config1 = getDatabaseQueryConfig(response.next_cursor)
-    config1.filter = stravaFilter
-    response = await notion.databases.query(config1)
-    responseArray = [...responseArray, ...response.results]
+    const config1 = getDatabaseQueryConfig(response.next_cursor);
+    config1.filter = stravaFilter;
+    response = await notion.databases.query(config1);
+    responseArray = [...responseArray, ...response.results];
   }
-  const found = responseArray.filter(activity => activity.properties.strava_id.rich_text[0].text.content == '6797788852')[0]?.id
-  console.log("all things?",found, JSON.stringify(responseArray))
+  const found = responseArray.filter(
+    (activity) =>
+      activity.properties.strava_id.rich_text[0].text.content == "6798333045"
+  )[0]?.id;
+  console.log("all things?", found, JSON.stringify(responseArray));
   return res.status(200).json({ message: "hello from the notion route" });
 };
 
-function getDatabaseQueryConfig (
+function getDatabaseQueryConfig(
   cursor = null,
   pageSize = null,
   database_id = process.env.NOTION_DATABASE_ID
 ) {
   const config = {
     database_id,
-  }
+  };
 
   if (cursor != null) {
-    config['start_cursor'] = cursor
+    config["start_cursor"] = cursor;
   }
 
   if (pageSize != null) {
-    config['page_size'] = pageSize
+    config["page_size"] = pageSize;
   }
 
-  return config
+  return config;
 }
 
-async function addItem({
+async function addNotionItem({
   title,
   id,
   startDate,
@@ -193,7 +196,7 @@ async function addItem({
 
   try {
     // if (strava_id === undefined) {
-    //   throw new Error("Error Creating Notion Page in addItem(): `strava_id` was undefined")
+    //   throw new Error("Error Creating Notion Page in addNotionItem(): `strava_id` was undefined")
     // }
     const response = await notion.pages.create({
       parent: { database_id: process.env.NOTION_DATABASE_ID },
@@ -254,8 +257,8 @@ async function addItem({
         },
         "Weight Category": {
           select: {
-            name: "Cardio" // Need to make this into switch case depending on strava activity?
-          }
+            name: "Cardio", // Need to make this into switch case depending on strava activity?
+          },
         },
       },
     });
@@ -268,4 +271,5 @@ async function addItem({
 
 module.exports = {
   getFallback,
+  addNotionItem,
 };

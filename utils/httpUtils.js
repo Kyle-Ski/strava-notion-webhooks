@@ -68,7 +68,7 @@ const buildFetchOptions = (options) => {
  * @returns HTTP response
  */
 const sendResponse = (res, response, messageToSend) => {
-  const messageBuilder = { message: messageToSend };
+  const messageBuilder = { ...messageToSend };
   if (response.status != 200) {
     messageBuilder.message = response.data;
   }

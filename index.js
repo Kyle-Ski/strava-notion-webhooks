@@ -11,9 +11,7 @@ const { healthCheck } = require("./controllers/stravaController");
 const authRoutes = require("./routes/authRoutes");
 const stravaRoutes = require("./routes/stravaRoutes");
 const notionRoutes = require("./routes/notionRoutes");
-const { getLocals } = require("./utils/localsUtils");
 const expressPort = 8080;
-const strava = require("strava-v3");
 
 const connectNgrok = async (port) => {
   console.log(
@@ -37,6 +35,7 @@ const connectNgrok = async (port) => {
 };
 
 const stravaMiddleWare = (req, res, next) => {
+  // could I use this to re-auth if the token is old?
   if (!app?.locals?.stravaMiddleWareInitalized) {
     console.log(
       "USING MY MIDDLE WARE FIRST TIME",
@@ -45,20 +44,10 @@ const stravaMiddleWare = (req, res, next) => {
       app.locals.access_token
     );
     app.locals.stravaMiddleWareInitalized = true;
-    strava.config({
-      access_token: app.locals.access_token,
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      redirect_uri: `${app.locals.callbackUrl}/auth/exchange_token`,
-    });
     return next();
   }
 
-  console.log(
-    "USING MY MIDDLE WARE",
-    req.url,
-    req.method,
-  );
+  console.log("USING MY MIDDLE WARE", req.url, req.method);
   next();
 };
 
