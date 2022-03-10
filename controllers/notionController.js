@@ -14,6 +14,7 @@ const stravaFilter = {
   and: [{ property: "strava_id", rich_text: { is_not_empty: true } }],
 };
 
+// Need to clean up this file and use updated functions
 const getFallback = async (req, res) => {
   const testResponse = {
     resource_state: 3,
