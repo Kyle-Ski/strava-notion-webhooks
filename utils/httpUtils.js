@@ -62,7 +62,7 @@ const buildFetchOptions = (options) => {
 
 /**
  *
- * @param {Object} res the response parameter from the route ex: app.use('/someRoute', (req, res) => {//some code})
+ * @param {Object} res the response parameter from the route ex: app.use('/someRoute', (req, res, next) => {//some code})
  * @param {Object} response the response from the responseBuilder call
  * @param {String} messageToSend positive json message to send back to the requester
  * @returns HTTP response

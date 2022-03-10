@@ -6,12 +6,15 @@ const { getActivityById } = require("../utils/stravaUtils")
 
 const { ACCESS_TOKEN } = LOCALS_KEYS
 
-const getFallback = async (req, res) => {
+const getFallback = async (req, res, next) => {
   const stravaResponse = await getActivityById("6606840419", getLocals(req, ACCESS_TOKEN))
   console.log(`Testing getActivityById("6606840419", getLocals(req, ACCESS_TOKEN)`)
   const formattedNotionObject = fmtNotionObject(stravaResponse)
   console.log(`Testing addNotionItem: adding: ${JSON.stringify(formattedNotionObject)}`)
-  addNotionItem(formattedNotionObject);
+  const addedItem = addNotionItem(formattedNotionObject);
+  if (!addedItem) {
+    return res.status(500).json({ message: "Error adding item" })
+  }
   const allStravaPages = await getAllStravaPages()
   const found = allStravaPages.filter(
     (activity) =>

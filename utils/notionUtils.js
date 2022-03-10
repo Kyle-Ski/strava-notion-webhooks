@@ -159,12 +159,14 @@ async function addNotionItem(itemToAdd) {
     // if (strava_id === undefined) {
     //   throw new Error("Error Creating Notion Page in addNotionItem(): `strava_id` was undefined")
     // }
-    console.log("--->", JSON.stringify(itemToAdd));
+    console.log(" addNotionItem --->", JSON.stringify(itemToAdd));
     const response = await notion.pages.create(itemToAdd);
-    console.log(response);
+    console.log("response:", response);
     console.log("Success! Entry added.");
+    return response
   } catch (error) {
     console.error(`Error creating page with notion sdk: ${error.body}`);
+    return false
   }
 }
 
@@ -207,8 +209,9 @@ async function deleteNotionPage(id) {
 
 async function updateNotionPage(notionId, updateObject) {
   try {
-    const response = await notion.pages.update(updateObject)
+    updateObject.page_id = notionId
     console.log(`Attempting to update ${JSON.stringify(notionId)} with ${JSON.stringify(updateObject)}`)
+    const response = await notion.pages.update(updateObject)
     console.log(`Update response: ${JSON.stringify(response)}`)
     return response
   } catch(e) {
