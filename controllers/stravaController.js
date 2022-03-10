@@ -146,7 +146,7 @@ const recieveWebhookEvent = async (req, res) => {
           const allStravaPages = await getAllStravaPages()
           const notionId = allStravaPages.find(item => item.properties.strava_id.rich_text[0].text.content == thingsToUpdate.properties.strava_id.rich_text[0].text.content)
           console.log("Notion thing:", JSON.stringify(notionId))
-          updateNotionPage(thingsToUpdate)
+          updateNotionPage(notionId, thingsToUpdate)
           console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           return sendResponse(
             res,
