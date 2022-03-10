@@ -8,17 +8,17 @@ const {
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { responseBuilder, sendResponse } = require("../utils/httpUtils");
 const {
-  metersPerSecToMph,
-  metersToFeet,
-  metersToMiles,
-} = require("../utils/unitConversionUtils");
-const { addNotionItem, deleteNotionPage } = require("../utils/notionUtils");
-const { fmtUpdate } = require("../utils/fmtUtils");
+  addNotionItem,
+  deleteNotionPage,
+  fmtNotionObject,
+  updateNotionPage,
+  getAllStravaPages,
+} = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
 
-const deleteSubscription = async (req, res) => {
+const deleteSubscription = async (req, res, next) => {
   const subscriptionId = getLocals(req, SUBSCRIPTION_ID);
   console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
@@ -39,7 +39,7 @@ const deleteSubscription = async (req, res) => {
   sendResponse(res, response, { message: "Delete successfull?" });
 };
 
-const getFallback = async (req, res) => {
+const getFallback = async (req, res, next) => {
   const payload = await getActivityById(
     "6606840419",
     getLocals(req, LOCALS_KEYS.ACCESS_TOKEN)
@@ -59,7 +59,7 @@ const getFallback = async (req, res) => {
   );
 };
 
-const postWebhookSubscription = async (req, res) => {
+const postWebhookSubscription = async (req, res, next) => {
   const baseUrl = getLocals(req, CALLBACK_URL);
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
@@ -93,8 +93,12 @@ const postWebhookSubscription = async (req, res) => {
       message: "Subscription Sucess!",
       deleteSubscription: `${getLocals(
         req,
-        LOCALS_KEYS.CALLBACK_URL
+        CALLBACK_URL
       )}/strava/subscribe/delete`,
+      testWebhookCreate: `${getLocals(
+        req,
+        CALLBACK_URL
+      )}/strava/test/webhook/create`,
     });
   } else {
     console.warn(`Error subscribing to webhook, Status: ${response.status}`);
@@ -117,7 +121,7 @@ const postWebhookSubscription = async (req, res) => {
  * @param {Object} res res object from the route
  * @returns
  */
-const recieveWebhookEvent = async (req, res) => {
+const recieveWebhookEvent = async (req, res, next) => {
   const token = getLocals(req, LOCALS_KEYS.ACCESS_TOKEN);
   console.log("webhook event received!", req.query, req.body);
   switch (req?.body?.object_type) {
@@ -126,23 +130,17 @@ const recieveWebhookEvent = async (req, res) => {
         case WEBHOOK_EVENTS.create:
           // Create Notion page, check to see we haven't already
           const payload = await getActivityById(req.body.object_id, token);
-          const newNotionPage = {
-            // we should use fmtUpdate()?
-            title: payload?.name,
-            id: JSON.stringify(payload?.id),
-            startDate: payload?.start_date_local,
-            distance: metersToMiles(payload?.distance),
-            elevationGain: metersToFeet(payload?.total_elevation_gain),
-            type: payload?.type,
-            averageHeartRate: payload?.average_heartrate,
-            maxHeartRate: payload?.max_heartrate,
-            maxElevation: metersToFeet(payload?.elev_high),
-            minElevation: metersToFeet(payload?.elev_low),
-            averageSpeed: metersPerSecToMph(payload?.average_speed),
-          };
-          addNotionItem(newNotionPage);
-          console.log("Attempting to add:", newNotionPage);
-          // console.log("Created Activity:", JSON.stringify(payload));
+          if (!payload) {
+            console.log("Couldn't get strava activity by id");
+            return sendResponse(
+              res,
+              { status: 200 },
+              { message: "EVENT_RECEIEVED" }
+            );
+          }
+          const formattedNotionObject = fmtNotionObject(payload);
+          addNotionItem(formattedNotionObject);
+          console.log("Attempting to map this into notion:", payload);
           return sendResponse(
             res,
             { status: 200 },
@@ -155,8 +153,24 @@ const recieveWebhookEvent = async (req, res) => {
             req?.body?.object_id,
             token
           );
-          console.log("---->", JSON.stringify(updatedActivity));
-          const thingsToUpdate = await fmtUpdate(updatedActivity);
+          if (!updatedActivity) {
+            console.warn("Warning: failed to update the activity")
+            return sendResponse(
+              res,
+              { status: 200 },
+              { message: "EVENT_RECEIEVED" }
+            );
+          }
+          const thingsToUpdate = fmtNotionObject(updatedActivity);
+          const allStravaPages = await getAllStravaPages();
+          const notionId = allStravaPages.find((item) => {
+            return (
+              item.properties.strava_id.rich_text[0].text.content ==
+              thingsToUpdate.properties.strava_id.rich_text[0].text.content
+            );
+          })?.id;
+          console.log("Notion thing:", JSON.stringify(notionId));
+          updateNotionPage(notionId, thingsToUpdate);
           console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           return sendResponse(
             res,
@@ -198,20 +212,49 @@ const recieveWebhookEvent = async (req, res) => {
   }
 };
 
-// test POST to our callback URL to see if it responds with 200
-//   curl -X POST \
-//    https://BASE_URL/strava/webhook \
-//    -H ‘Content-Type: application/json’ \
-//    -d ‘{
-//         “aspect_type”: “create”,
-//         “event_time”: 1549560669,
-//         “object_id”: 666,
-//         “object_type”: “activity”,
-//         “owner_id”: 78993,
-//         “subscription_id”: 213539
-//       }’
+const testWebhookEvent = async (req, res, next) => {
+  const eventToTest = req.params.event;
+  const timeStamp = Math.round(new Date().getTime() / 1000);
+  const subscriptionId = getLocals(req, SUBSCRIPTION_ID);
+  console.log(
+    `Testing Webhook Event: ${eventToTest}, ${timeStamp}, ${subscriptionId}`
+  );
+  const body = {
+    name: `test webhook event ${eventToTest}`,
+    aspect_type: eventToTest,
+    event_time: timeStamp,
+    object_id: 6606840419, // Morning Hike Sun Jan 30th 2022
+    object_type: "activity",
+    owner_id: 78993,
+    subscription_id: subscriptionId,
+  };
 
-const subscribeToWebhook = (req, res) => {
+  if (eventToTest == WEBHOOK_EVENTS.update) {
+    body["updates"] = { name: "Updated name test" };
+  }
+  console.log(`Date and sub id: ${(timeStamp, subscriptionId)}`);
+
+  const requestOptions = {
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  };
+  const response = await responseBuilder(
+    `${getLocals(req, CALLBACK_URL)}/strava/webhook`,
+    `Error Testing webhook event: ${JSON.stringify(req.params)}`,
+    requestOptions
+  );
+  console.log(`Test Response: ${JSON.stringify(response)}`);
+  res
+    .status(response.status)
+    .json({
+      message: `${response.data.message} test webhook event ${eventToTest}`,
+    });
+};
+
+const subscribeToWebhook = (req, res, next) => {
   // Your verify token. Should be a random string.
   const VERIFY_TOKEN = getLocals(req, LOCALS_KEYS.ACCESS_TOKEN);
   // Parses the query params
@@ -252,7 +295,7 @@ const healthCheck = async (callbackUrl, challenge, res, access_token) => {
   return sendResponse(res, response, { message: healthCheckMessage });
 };
 
-const viewSubscription = async (req, res) => {
+const viewSubscription = async (req, res, next) => {
   // Test curl to view the subscription
   // curl -G https://www.strava.com/api/v3/push_subscriptions \
   //     -d client_id=CLIENT_ID \
@@ -285,4 +328,5 @@ module.exports = {
   subscribeToWebhook,
   healthCheck,
   viewSubscription,
+  testWebhookEvent,
 };
