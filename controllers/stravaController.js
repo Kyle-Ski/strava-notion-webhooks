@@ -12,8 +12,7 @@ const {
   metersToFeet,
   metersToMiles,
 } = require("../utils/unitConversionUtils");
-const { addNotionItem, deleteNotionPage } = require("../utils/notionUtils");
-const { fmtUpdate } = require("../utils/fmtUtils");
+const { addNotionItem, deleteNotionPage, fmtNotionObject } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
@@ -140,7 +139,7 @@ const recieveWebhookEvent = async (req, res) => {
             minElevation: metersToFeet(payload?.elev_low),
             averageSpeed: metersPerSecToMph(payload?.average_speed),
           };
-          addNotionItem(newNotionPage);
+          addNotionItem(payload);
           console.log("Attempting to add:", newNotionPage);
           // console.log("Created Activity:", JSON.stringify(payload));
           return sendResponse(
@@ -156,7 +155,7 @@ const recieveWebhookEvent = async (req, res) => {
             token
           );
           console.log("---->", JSON.stringify(updatedActivity));
-          const thingsToUpdate = await fmtUpdate(updatedActivity);
+          const thingsToUpdate = await fmtNotionObject(updatedActivity);
           console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           return sendResponse(
             res,

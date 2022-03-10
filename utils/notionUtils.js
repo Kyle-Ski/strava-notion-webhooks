@@ -1,4 +1,12 @@
 require("dotenv").config();
+const {
+  celciusToF,
+  dateToDayOfWeek,
+  metersPerSecToMph,
+  metersToFeet,
+  metersToMiles,
+  secondsToTime,
+} = require("./unitConversionUtils");
 const { fmtCategoryType, fmtWeightCategoryType } = require("./fmtUtils");
 const { Client, LogLevel } = require("@notionhq/client");
 const notion = new Client({
@@ -7,6 +15,118 @@ const notion = new Client({
 });
 const stravaFilter = {
   and: [{ property: "strava_id", rich_text: { is_not_empty: true } }],
+};
+
+/**
+ * Formats the strava.activities.get response into the correct shape for notion.pages.update()
+ * @param {Object} update
+ * @param {String} stravaId
+ * @returns {Object} Ex: {
+ *    page_id: NOTION_PAGE_ID,
+ *    properties: {}
+ * }
+ */
+const fmtNotionObject = async (update, stravaId = false) => {
+  let returnObj = { parent: { database_id: process.env.NOTION_DATABASE_ID }, properties: {} };
+  if (stravaId) {
+    const allStravaItems = await getAllStravaPages();
+    const notionId = allStravaItems.find(
+      (item) => item.properties.strava_id.rich_text[0].text.content == stravaId
+    )?.id;  
+    returnObj.page_id = notionId
+  }
+  for (let key in update) {
+    switch (key) {
+      case "id":
+      case "object_id":
+        if(!stravaId){
+          returnObj.properties["strava_id"] = {
+            rich_text: [{ text: { content: JSON.stringify(update[key]) } }]
+          }
+        }
+        continue
+      case "title":
+      case "name":
+        returnObj.properties["Name"] = {
+          title: [{ text: { content: update[key] } }],
+        };
+        continue
+      case "moving_time":
+        returnObj.properties["Moving Time"] = {
+          rich_text: [{ text: { content: secondsToTime(update[key]) } }],
+        };
+        continue
+      case "elapsed_time":
+        returnObj.properties["Elapsed Time"] = {
+          rich_text: [{ text: { content: secondsToTime(update[key]) } }],
+        };
+        continue
+      case "total_elevation_gain":
+        returnObj.properties["Elevation Gain"] = {
+          number: metersToFeet(update[key]),
+        };
+        continue
+      case "start_date_local":
+        returnObj.properties["Date"] = { date: { start: update[key] } };
+        returnObj.properties["Day"] = {
+          multi_select: [{ name: dateToDayOfWeek(update[key]) }],
+        };
+        continue
+      case "average_speed":
+        returnObj.properties["Average Speed"] = {
+          number: metersPerSecToMph(update[key]),
+        };
+        continue
+      case "max_speed":
+        returnObj.properties["Max Speed"] = {
+          number: metersPerSecToMph(update[key]),
+        };
+        continue
+      case "average_temp":
+        returnObj.properties["Average Temp"] = {
+          rich_text: [
+            {
+              text: {
+                content: `${celciusToF(update[key])}°F | ${update[key]}°C`,
+              },
+            },
+          ],
+        };
+        continue
+      case "average_heartrate":
+        returnObj.properties["Average Heart Rate"] = { number: update[key] };
+        continue
+      case "max_heartrate":
+        returnObj.properties["Max Heart Rate"] = { number: update[key] };
+        continue
+      case "elev_high":
+        returnObj.properties["Max Elevation"] = {
+          number: metersToFeet(update[key]),
+        };
+        continue
+      case "elev_low":
+        returnObj.properties["Min Elevation"] = {
+          number: metersToFeet(update[key]),
+        };
+        continue
+      case "type":
+        returnObj.properties["Category"] = {
+          select: { name: fmtCategoryType(update[key]) },
+        };
+        returnObj.properties["Weight Category"] = {
+          select: { name: fmtWeightCategoryType(update[key]) },
+        };
+        continue
+      case "distance":
+        returnObj.properties["Distance"] = {
+          number: metersToMiles(update[key]),
+        };
+        continue
+    }
+  }
+  returnObj["parent"] = { database_id: process.env.NOTION_DATABASE_ID };
+  console.log("Created Object ------->", JSON.stringify(returnObj));
+  return returnObj;
 };
 
 /**
@@ -44,89 +164,13 @@ const getDatabaseQueryConfig = (
  * @param {Object} itemToAdd the Strava activity we're going to use to create a Notion page
  */
 async function addNotionItem(itemToAdd) {
-  const {
-    title,
-    id,
-    startDate,
-    distance,
-    elevationGain,
-    type,
-    averageHeartRate,
-    maxHeartRate,
-    maxElevation,
-    minElevation,
-    averageSpeed,
-  } = itemToAdd;
-  let categoryType = fmtCategoryType(type);
-  let weightCategoryType = fmtWeightCategoryType(type);
   try {
     // if (strava_id === undefined) {
     //   throw new Error("Error Creating Notion Page in addNotionItem(): `strava_id` was undefined")
     // }
-    const response = await notion.pages.create({
-      parent: { database_id: process.env.NOTION_DATABASE_ID },
-      properties: {
-        Name: {
-          title: [
-            {
-              text: {
-                content: title,
-              },
-            },
-          ],
-        },
-        strava_id: {
-          rich_text: [
-            {
-              text: {
-                content: id,
-              },
-            },
-          ],
-        },
-        Date: {
-          date: {
-            start: startDate,
-          },
-        },
-        Distance: {
-          number: distance,
-        },
-        // Day: {
-        //   multi_select: {
-        //     name: dayVariable // need to make this reflecting on what the actual day is
-        //   }
-        // },
-        Category: {
-          select: {
-            name: categoryType, // Turn into constant?
-          },
-        },
-        "Min Elevation": {
-          number: minElevation,
-        },
-        "Average Speed": {
-          number: averageSpeed,
-        },
-        "Max Heart Rate": {
-          number: maxHeartRate,
-        },
-        "Max Elevation": {
-          number: maxElevation,
-        },
-        "Elevation Gain": {
-          number: elevationGain,
-        },
-        "Average Heart Rate": {
-          number: averageHeartRate,
-        },
-        "Weight Category": {
-          select: {
-            name: weightCategoryType,
-          },
-        },
-      },
-    });
+    const notionObject = await fmtNotionObject(itemToAdd);
+    console.log("--->", JSON.stringify(notionObject));
+    const response = await notion.pages.create(notionObject);
     console.log(response);
     console.log("Success! Entry added.");
   } catch (error) {
@@ -193,6 +237,7 @@ async function getAllStravaPages() {
 
 module.exports = {
   addNotionItem,
+  fmtNotionObject,
   deleteNotionPage,
   getAllStravaPages,
 };
