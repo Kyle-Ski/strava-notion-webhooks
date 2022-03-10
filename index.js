@@ -54,25 +54,25 @@ const stravaMiddleWare = (req, res, next) => {
 // Sets server port and connects ngrok to the same port
 app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
 
-app.get("/", (req, res) => {
+app.get("/", (req, res, next) => {
   console.log(`GET "/"`);
   res
     .status(200)
     .json({ message: "Hello! Looks like you found the root address!" });
 
   logObject(req);
-  return;
+  next()
 });
 
-app.get("/health", async (req, res) => {
+app.get("/health", async (req, res, next) => {
   console.log(
     "Checking application health...",
     app.locals.callbackUrl,
     typeof app.locals.access_token === "string"
   );
-  // healthCheck(app.locals.callbackUrl, app.locals.challengeId, res, app.locals.access_token)
+  healthCheck(app.locals.callbackUrl, app.locals.challengeId, res, app.locals.access_token)
   // What else could be checked?
-  return;
+  next();
 });
 
 app.use("/auth", authRoutes);

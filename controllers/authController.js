@@ -2,7 +2,6 @@ require("dotenv").config();
 const fetch = require("node-fetch");
 const { LOCALS_KEYS } = require("../constants");
 const { getLocals, setLocals } = require("../utils/localsUtils");
-const { responseBuilder } = require("../utils/httpUtils");
 const { logObject } = require("../utils/jsUtils");
 
 const fetchOauthToken = async (code, res, req) => {
@@ -10,7 +9,6 @@ const fetchOauthToken = async (code, res, req) => {
   // TODO should we use the response builder for this? probably..
   try {
     const bodyThing = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&code=${code}&grant_type=authorization_code`;
-    console.log(":::::::::::", bodyThing);
     const request = await fetch("https://www.strava.com/api/v3/oauth/token", {
       method: "POST",
       headers: {
@@ -50,11 +48,11 @@ const fetchOauthToken = async (code, res, req) => {
   }
 };
 
-const getFallback = (req, res) => {
+const getFallback = (req, res, next) => {
   return res.status(200).json({ message: "Hello from the auth route" });
 };
 
-const exchangeTokens = (req, res) => {
+const exchangeTokens = (req, res, next) => {
   console.log(`GET "/exchange_token"`);
   // Log out the request just in case
   logObject(req);

@@ -8,5 +8,6 @@ router.post("/webhook", controller.recieveWebhookEvent);
 router.get("/subscribe", controller.postWebhookSubscription);
 router.get("/subscribe/view", controller.viewSubscription);
 router.get('/subscribe/delete', controller.deleteSubscription)
+router.get("/test/webhook/:event", controller.testWebhookEvent)
 
 module.exports = router;
