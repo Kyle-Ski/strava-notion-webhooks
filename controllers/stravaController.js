@@ -12,7 +12,7 @@ const {
   metersToFeet,
   metersToMiles,
 } = require("../utils/unitConversionUtils");
-const { addNotionItem, deleteNotionPage, fmtNotionObject } = require("../utils/notionUtils");
+const { addNotionItem, deleteNotionPage, fmtNotionObject, updateNotionPage, getAllStravaPages } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
 const { ACCESS_TOKEN, CALLBACK_URL, SUBSCRIPTION_ID } = LOCALS_KEYS;
@@ -125,22 +125,9 @@ const recieveWebhookEvent = async (req, res) => {
         case WEBHOOK_EVENTS.create:
           // Create Notion page, check to see we haven't already
           const payload = await getActivityById(req.body.object_id, token);
-          const newNotionPage = {
-            // we should use fmtUpdate()?
-            title: payload?.name,
-            id: JSON.stringify(payload?.id),
-            startDate: payload?.start_date_local,
-            distance: metersToMiles(payload?.distance),
-            elevationGain: metersToFeet(payload?.total_elevation_gain),
-            type: payload?.type,
-            averageHeartRate: payload?.average_heartrate,
-            maxHeartRate: payload?.max_heartrate,
-            maxElevation: metersToFeet(payload?.elev_high),
-            minElevation: metersToFeet(payload?.elev_low),
-            averageSpeed: metersPerSecToMph(payload?.average_speed),
-          };
-          addNotionItem(payload);
-          console.log("Attempting to add:", newNotionPage);
+          const formattedNotionObject = fmtNotionObject(payload)
+          addNotionItem(formattedNotionObject);
+          console.log("Attempting to map this into notion:", payload);
           // console.log("Created Activity:", JSON.stringify(payload));
           return sendResponse(
             res,
@@ -155,7 +142,11 @@ const recieveWebhookEvent = async (req, res) => {
             token
           );
           console.log("---->", JSON.stringify(updatedActivity));
-          const thingsToUpdate = await fmtNotionObject(updatedActivity);
+          const thingsToUpdate = fmtNotionObject(updatedActivity);
+          const allStravaPages = await getAllStravaPages()
+          const notionId = allStravaPages.find(item => item.properties.strava_id.rich_text[0].text.content == thingsToUpdate.properties.strava_id.rich_text[0].text.content)
+          console.log("Notion thing:", JSON.stringify(notionId))
+          updateNotionPage(thingsToUpdate)
           console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           return sendResponse(
             res,
