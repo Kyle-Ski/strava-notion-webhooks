@@ -5,7 +5,10 @@ const { getLocals, setLocals } = require("../utils/localsUtils");
 const { logObject } = require("../utils/jsUtils");
 
 const fetchOauthToken = async (code, res, req) => {
-  //https://www.strava.com/oauth/accept_application?client_id=78993&redirect_uri={BASE_URL: https%3A%2F%2F4c0a-65-156-41-108.ngrok.io}%2Fauth%2Fexchange_token&response_type=code&scope=activity%3Aread%2Cread%2Cread_all
+  //https://www.strava.com/oauth/accept_application?client_id=78993&redirect_uri=BASE_URL:https%3A%2F%2F4c0a-65-156-41-108.ngrok.io%2Fauth%2Fexchange_token&response_type=code&scope=activity%3Aread%2Cread%2Cread_all
+  // TODO the above url accepts the application and sends us to our app to exchange tokens, can we automate this? Should we?
+  let url = getLocals(req, LOCALS_KEYS.CALLBACK_URL)
+  let accpetApplicationUrl = `https://www.strava.com/oauth/accept_application?client_id=${process.env.CLIENT_ID}&redirect_uri=https%3A%2F%2F${url.split("https://")[1]}%2Fauth%2Fexchange_token&response_type=code&scope=activity%3Aread%2Cread%2Cread_all`
   // TODO should we use the response builder for this? probably..
   try {
     const bodyThing = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&code=${code}&grant_type=authorization_code`;
@@ -33,13 +36,13 @@ const fetchOauthToken = async (code, res, req) => {
           LOCALS_KEYS.CALLBACK_URL
         )}/strava/subscribe`,
       });
-    return response;
+    // return response;
   } catch (e) {
-    console.log(
+    console.error(
       "ERROR: error exchanging tokens with https://www.strava.com/api/v3/oauth/token",
       e
     );
-    return res
+    res
       .status(500)
       .json({
         message:
@@ -49,20 +52,17 @@ const fetchOauthToken = async (code, res, req) => {
 };
 
 const getFallback = (req, res, next) => {
-  return res.status(200).json({ message: "Hello from the auth route" });
+  res.status(200).json({ message: "Hello from the auth route" });
 };
 
 const exchangeTokens = (req, res, next) => {
-  console.log(`GET "/exchange_token"`);
-  // Log out the request just in case
-  logObject(req);
   if (req.query.code) {
     return fetchOauthToken(req.query.code, res, req);
   } else {
     console.log("NO req.query.code");
-    return res
+    res
       .status(404)
-      .json({ message: "ERROR: request query code not found." });
+      .json({ message: "ERROR: request query code from strava not found." });
   }
 };
 
