@@ -1,60 +1,22 @@
 "use strict";
 require("dotenv").config();
 
-const ngrok = require("ngrok");
 const express = require("express"),
   bodyParser = require("body-parser"),
   app = express().use(bodyParser.json());
 
 const { logObject } = require("./utils/jsUtils");
+const { connectNgrok } = require("./utils/ngrokUtils")
 const { healthCheck } = require("./controllers/stravaController");
+const { logRequests, refreshStravaToken } = require("./middleware")
 const authRoutes = require("./routes/authRoutes");
 const stravaRoutes = require("./routes/stravaRoutes");
 const notionRoutes = require("./routes/notionRoutes");
 const expressPort = 8080;
 
-const connectNgrok = async (port) => {
-  console.log(
-    `webhook is listening on ${port}, connecting ngrok to the same..`
-  );
-  try {
-    const url = await ngrok.connect({
-      authtoken: process.env.NGROK_AUTH_TOKEN,
-      addr: port,
-    });
-    app.locals.callbackUrl = url;
-    console.log(
-      "url:",
-      url.split("https://")[1],
-      `Auth URL: ${`https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`}`
-    );
-    return;
-  } catch (e) {
-    console.error("ERROR: error connecting ngrok:", e);
-    throw new Error("Error connecting index.js to ngrok:", e);
-  }
-};
-
-const stravaMiddleWare = (req, res, next) => {
-  // could I use this to re-auth if the token is old?
-  if (!app?.locals?.stravaMiddleWareInitalized) {
-    console.log(
-      `First instance of our middleware: ${req?.method}: "${req?.url}"`
-    );
-    app.locals.stravaMiddleWareInitalized = true;
-    return next();
-  }
-  console.log(`
-    Using our middleware: 
-    ${req?.method}: "${req?.url}"
-    originalUrl: "${req?.originalUrl}"
-  `);
-  next();
-};
-
 // Sets server port and connects ngrok to the same port
-app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
-app.use(stravaMiddleWare);
+app.listen(process.env.PORT || expressPort, connectNgrok(expressPort, process.env.NGROK_AUTH_TOKEN, (url) => app.locals.callbackUrl = url));
+app.use(logRequests);
 
 app.get("/", (req, res, next) => {
   res
@@ -64,6 +26,12 @@ app.get("/", (req, res, next) => {
   logObject(req);
   next();
 });
+
+app.use("/auth", authRoutes);
+// We want this after auth since it depends on us being authed 
+app.use(refreshStravaToken)
+app.use("/strava", stravaRoutes);
+app.use("/notion", notionRoutes);
 
 app.get("/health", async (req, res, next) => {
   console.log(
@@ -81,9 +49,6 @@ app.get("/health", async (req, res, next) => {
   next();
 });
 
-app.use("/auth", authRoutes);
-app.use("/strava", stravaRoutes);
-app.use("/notion", notionRoutes);
 
 // app.use(notFound);
 app.use(errorHandler);
