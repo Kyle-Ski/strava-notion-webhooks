@@ -117,6 +117,7 @@ const fmtNotionObject = (stravaObject) => {
   }
   if (returnObj?.properties?.Name !== undefined) {
     const { Name } = returnObj.properties
+    console.log("we're in here...", JSON.stringify(Name))
     if(Name?.title?.text?.content?.toLowerCase()?.includes("dog") || Name?.title?.text?.content?.toLowerCase()?.includes("otis")) {
       console.log("We should make this a dog walk")
       returnObj.properties["Sub Category"] = {

@@ -13,8 +13,22 @@ const twoDecimals = (num) => {
  * @returns
  */
 const celciusToF = (celcius) => {
-  return celcius * (9 / 5) + 32;
+  return twoDecimals(celcius * (9 / 5) + 32);
 };
+
+/**
+ * Allows us to check and see if a unix timestamp has passed, if it has (or if it is the time) return true,
+ * otherwise return false.
+ * @param {number} unixTime The time we want to check
+ */
+const checkTimeExpired = (unixTime) => {
+  let now = new Date() / 1000
+  if (unixTime < now) {
+    return true
+  } else {
+    return false
+  }
+}
 
 /**
  * Converts date to the day of the week.
@@ -81,6 +95,7 @@ const secondsToTime = (seconds) => {
 
 module.exports = {
   celciusToF,
+  checkTimeExpired,
   dateToDayOfWeek,
   twoDecimals,
   metersPerSecToMph,

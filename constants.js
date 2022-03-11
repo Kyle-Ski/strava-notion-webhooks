@@ -2,8 +2,8 @@ const LOCALS_KEYS = {
   ACCESS_TOKEN: "access_token", // Strava short lived access token
   CALLBACK_URL: "callbackUrl", // ngrok url
   challengeId: "challengeId", // Id used to auth with Strava
-  expires_at: "expires_at",
-  refresh_token: "refresh_token", // Long lived refresh token
+  EXPIRES_AT: "expires_at",
+  REFRESH_TOKEN: "refresh_token", // Long lived refresh token
   stravaMiddleWareInitalized: "stravaMiddleWareInitalized",
   SUBSCRIPTION_ID: "subscriptionId", // Strava subscription id
 };
