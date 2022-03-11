@@ -22,6 +22,7 @@ const celciusToF = (celcius) => {
  * @param {number} unixTime The time we want to check
  */
 const checkTimeExpired = (unixTime) => {
+  console.log(`Checking now: ${new Date()} vs ${new Date(unixTime * 1000)}`)
   let now = new Date() / 1000
   if (unixTime < now) {
     return true
