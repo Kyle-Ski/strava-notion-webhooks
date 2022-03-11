@@ -8,6 +8,7 @@ const express = require("express"),
 
 const { logObject } = require("./utils/jsUtils");
 const { healthCheck } = require("./controllers/stravaController");
+const { logRequests, refreshTokens } = require("./middleware/middleware")
 const authRoutes = require("./routes/authRoutes");
 const stravaRoutes = require("./routes/stravaRoutes");
 const notionRoutes = require("./routes/notionRoutes");
@@ -35,26 +36,11 @@ const connectNgrok = async (port) => {
   }
 };
 
-const stravaMiddleWare = (req, res, next) => {
-  // could I use this to re-auth if the token is old?
-  if (!app?.locals?.stravaMiddleWareInitalized) {
-    console.log(
-      `First instance of our middleware: ${req?.method}: "${req?.url}"`
-    );
-    app.locals.stravaMiddleWareInitalized = true;
-    return next();
-  }
-  console.log(`
-    Using our middleware: 
-    ${req?.method}: "${req?.url}"
-    originalUrl: "${req?.originalUrl}"
-  `);
-  next();
-};
 
 // Sets server port and connects ngrok to the same port
 app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
-app.use(stravaMiddleWare);
+app.use(logRequests);
+app.use(refreshTokens)
 
 app.get("/", (req, res, next) => {
   res
