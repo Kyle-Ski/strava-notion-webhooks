@@ -14,7 +14,7 @@ async function getActivityById(id, token) {
     });
     return payload;
   } catch (e) {
-    console.warn(`
+    console.error(`
         getActivityById()
         Error getting strava activity by id: ${id}
         ERROR: ${e}
@@ -35,7 +35,7 @@ async function getAllActivities(token) {
     });
     return payload;
   } catch (e) {
-    console.warn("Error listing all activities");
+    console.error("Error listing all activities");
     return false;
   }
 }
