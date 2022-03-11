@@ -62,21 +62,6 @@ const buildFetchOptions = (options) => {
 
 /**
  *
- * @param {Object} res the response parameter from the route ex: app.use('/someRoute', (req, res, next) => {//some code})
- * @param {Object} response the response from the responseBuilder call
- * @param {String} messageToSend positive json message to send back to the requester
- * @returns HTTP response
- */
-const sendResponse = (res, response, messageToSend) => {
-  const messageBuilder = { ...messageToSend };
-  if (response.status != 200) {
-    messageBuilder.message = response.data;
-  }
-  return res.status(response.status).json(messageBuilder);
-};
-
-/**
- *
  * @param {String} url The URL we want to fetch from
  * @param {String} errorMessage Message we should send to the requester uppon fetch fail
  * @param {Object} options The request options we want to include, if none are included; we'll assume it's a GET request
@@ -91,18 +76,18 @@ const responseBuilder = async (url, errorMessage, options = false) => {
     const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
-      console.warn(
-        "responseBuilder response NOT ok:",
-        response.status,
-        response.ok
-      );
       console.warn(`
-            Error fetching ${url}
-            options: ${JSON.stringify(fetchOptions)}
-            status: ${response.status}
-            `);
+        responseBuilder response NOT ok:
+        Status: ${response?.status}
+        response.ok: ${response.ok}
+        Url: ${url}
+      `)
       const data = await response.json();
-      console.log("----->", JSON.stringify(data));
+      console.log("responseBuilder !ok response:", JSON.stringify(data));
+      if (data?.errors?.length) {
+        // Strava errors look like this, let's send the error back formatted their way
+        return { status: 400, data: { ...data.errors[0]} }
+      }
       return { status: response.status, data: errorMessage };
     }
     // As of now, I'm assuming we're ONLY going to be hiting things that return json
@@ -110,9 +95,9 @@ const responseBuilder = async (url, errorMessage, options = false) => {
       return { status: 200, data: "deleted" };
     }
     const data = await response.json();
-    return { status: 200, data };
+    return { status: response.status, data };
   } catch (e) {
-    console.warn("responseBuilder ERROR:", e);
+    console.error("responseBuilder ERROR:", e);
     return {
       status: 500,
       data: `Internal server error attempting to ${fetchOptions.method} ${url}`,
@@ -122,5 +107,4 @@ const responseBuilder = async (url, errorMessage, options = false) => {
 
 module.exports = {
   responseBuilder,
-  sendResponse,
 };

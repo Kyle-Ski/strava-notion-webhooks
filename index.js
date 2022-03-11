@@ -30,7 +30,8 @@ const connectNgrok = async (port) => {
     );
     return;
   } catch (e) {
-    console.log("ERROR: error connecting ngrok:", e);
+    console.error("ERROR: error connecting ngrok:", e);
+    throw new Error("Error connecting index.js to ngrok:", e);
   }
 };
 
@@ -38,30 +39,30 @@ const stravaMiddleWare = (req, res, next) => {
   // could I use this to re-auth if the token is old?
   if (!app?.locals?.stravaMiddleWareInitalized) {
     console.log(
-      "USING MY MIDDLE WARE FIRST TIME",
-      req.url,
-      req.method,
-      app.locals.access_token
+      `First instance of our middleware: ${req?.method}: "${req?.url}"`
     );
     app.locals.stravaMiddleWareInitalized = true;
     return next();
   }
-
-  console.log("USING MY MIDDLE WARE", req.url, req.method);
+  console.log(`
+    Using our middleware: 
+    ${req?.method}: "${req?.url}"
+    originalUrl: "${req?.originalUrl}"
+  `);
   next();
 };
 
 // Sets server port and connects ngrok to the same port
 app.listen(process.env.PORT || expressPort, connectNgrok(expressPort));
+app.use(stravaMiddleWare);
 
 app.get("/", (req, res, next) => {
-  console.log(`GET "/"`);
   res
     .status(200)
     .json({ message: "Hello! Looks like you found the root address!" });
 
   logObject(req);
-  next()
+  next();
 });
 
 app.get("/health", async (req, res, next) => {
@@ -70,12 +71,31 @@ app.get("/health", async (req, res, next) => {
     app.locals.callbackUrl,
     typeof app.locals.access_token === "string"
   );
-  healthCheck(app.locals.callbackUrl, app.locals.challengeId, res, app.locals.access_token)
+  healthCheck(
+    app.locals.callbackUrl,
+    app.locals.challengeId,
+    res,
+    app.locals.access_token
+  );
   // What else could be checked?
   next();
 });
 
 app.use("/auth", authRoutes);
-app.use(stravaMiddleWare);
 app.use("/strava", stravaRoutes);
 app.use("/notion", notionRoutes);
+
+// app.use(notFound);
+app.use(errorHandler);
+
+// function notFound(err, req, res, next) {
+//   res
+//     .status(404)
+//     .send({ error: "Not found!", status: 404, url: req.originalUrl });
+// }
+
+function errorHandler(err, req, res, next) {
+  console.error("errorHandler", err);
+  const stack = process.env.NODE_ENV !== "production" ? err.stack : undefined;
+  res.status(500).send({ error: err.message, stack, url: req.originalUrl });
+}

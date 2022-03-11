@@ -115,6 +115,17 @@ const fmtNotionObject = (stravaObject) => {
         continue
     }
   }
+  if (returnObj?.properties?.Name !== undefined) {
+    const { Name } = returnObj.properties
+    if(Name?.title?.text?.content?.toLowerCase()?.includes("dog") || Name?.title?.text?.content?.toLowerCase()?.includes("otis")) {
+      console.log("We should make this a dog walk")
+      returnObj.properties["Sub Category"] = {
+        multi_select: [{ name: "Dog Walk" }],
+      }
+
+    }
+  }
+  
   returnObj["parent"] = { database_id: process.env.NOTION_DATABASE_ID };
   console.log("Created Object ------->", JSON.stringify(returnObj));
   return returnObj;
@@ -202,7 +213,7 @@ async function deleteNotionPage(id) {
       );
     }
   } catch (e) {
-    console.warn("Error listing all notion pages:", e);
+    console.error("Error listing all notion pages:", e);
     return false;
   }
 }
@@ -215,7 +226,8 @@ async function updateNotionPage(notionId, updateObject) {
     console.log(`Update response: ${JSON.stringify(response)}`)
     return response
   } catch(e) {
-    console.log(`Error attempting to update ${JSON.stringify(notionId)}. ERROR: ${JSON.stringify(e)}`)
+    console.error(`Error attempting to update ${JSON.stringify(notionId)}. ERROR: ${JSON.stringify(e)}`)
+    return false
   }
   
 }
@@ -228,6 +240,10 @@ async function getAllStravaPages() {
   const config = getDatabaseQueryConfig();
   config.filter = stravaFilter;
   let response = await notion.databases.query(config);
+  if (!response?.results) {
+    console.warn("Error getting all strava pages from the Notion database", JSON.stringify(response))
+    return false
+  }
   let responseArray = [...response.results];
   while (response.has_more) {
     // continue to query if next_cursor is returned
@@ -236,7 +252,6 @@ async function getAllStravaPages() {
     response = await notion.databases.query(config1);
     responseArray = [...responseArray, ...response.results];
   }
-  console.log("all things?", JSON.stringify(responseArray));
   return responseArray;
 }
 
