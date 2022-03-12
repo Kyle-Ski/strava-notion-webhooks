@@ -341,56 +341,67 @@ const getNotionPageById = async (pageId) => {
  * @param {Object} error the error we wish to log to notion
  */
 async function logNotionError(errorTitle, error) {
-  const notionBlock = await getNotionBlockByPageId("615e955ef7c14182a13e091e3b62d89e")
-  console.log("NOTION BLOCK:", notionBlock)
-  try {
-    const response = await notion.blocks.children.append({
-      block_id: '615e955e-f7c1-4182-a13e-091e3b62d89e', // Page ID of errors: "615e955ef7c14182a13e091e3b62d89e"
-      children: [
-        {
-          object: "block",
-          type: "toggle",
-          toggle: {
-            rich_text: [
-              {
-                type: "text",
-                text: {
-                  content: `${errorTitle} ${new Date()}`,
-                  link: null,
-                },
-              },
-            ],
-            color: "default",
-            children: [
-              {
-                type: "code",
-                code: {
-                  rich_text: [
-                    {
-                      type: "text",
-                      text: {
-                        content: JSON.stringify(error),
-                      },
-                    },
-                  ],
-                  language: "plain text",
-                },
-              },
-            ],
-          },
-        },
-      ],
-    });
-    console.log(`
-    Notion update block response:
-    ${JSON.stringify(response)}
-    `);
-    return response
-  } catch (e) {
-    console.error("Error logging to notion:", JSON.stringify(e));
-    return false;
-  }
+  const notionErrorPageId = "615e955ef7c14182a13e091e3b62d89e" // The page we're logging errors out to
+  const logItem = createLogItem(error, errorTitle)
+  const notionBlock = await getNotionBlockByPageId(notionErrorPageId) // We can use this to get the block id we want to append to
+  // console.log("NOTION BLOCK:", notionBlock)
+  const notionErrorPageBlockId = notionBlock?.id // "615e955e-f7c1-4182-a13e-091e3b62d89e" 
+  return updateNotionPageContent(notionErrorPageBlockId, logItem)
 };
+
+/**
+ * Creates a toggle block in notion with content that will be JSON.stringify(ed)
+ * @param {Object} itemToLog whatever you want to JSON.stringify
+ * @param {*} logTitle 
+ * @returns 
+ */
+const createLogItem = (itemToLog, logTitle) => {
+   return {
+    children: [
+      {
+        object: "block",
+        type: "toggle",
+        toggle: {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: `${logTitle} ${new Date()}`,
+                link: null,
+              },
+            },
+          ],
+          color: "default",
+          children: [
+            {
+              type: "code",
+              code: {
+                rich_text: [
+                  {
+                    type: "text",
+                    text: {
+                      content: JSON.stringify(itemToLog),
+                    },
+                  },
+                ],
+                language: "plain text",
+              },
+            },
+          ],
+        },
+      },
+    ],
+  }
+}
+
+const logNotionItem = async (logTitle, log) => {
+  const notionLogPageId = "8ab781288fcb437bbfffaaf1c88db0b4"
+  const logItem = createLogItem(log, logTitle)
+  const notionBlock = await getNotionBlockByPageId(notionLogPageId)
+  // console.log("logNotionItem", JSON.stringify(notionBlock))
+  const notionLogPageBlockId = notionBlock?.id//"8ab78128-8fcb-437b-bfff-aaf1c88db0b4"
+  return updateNotionPageContent(notionLogPageBlockId, logItem)
+}
 
 /**
  * Update a notion page by appending to the last block id in that page.
@@ -431,6 +442,7 @@ module.exports = {
   getNotionBlockByPageId,
   getNotionPageById,
   logNotionError,
+  logNotionItem,
   updateNotionPage,
   updateNotionPageContent,
 };
