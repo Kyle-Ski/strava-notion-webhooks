@@ -13,6 +13,8 @@ const {
   fmtNotionObject,
   updateNotionPage,
   getAllStravaPages,
+  logNotionError,
+  logNotionItem,
 } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
@@ -103,8 +105,7 @@ const getFallback = async (req, res, next) => {
 };
 
 /**
- * This function recieves subscription requests to my (Kyle's) strava. It let's Strava know 
- * what url it should send webhook events to (callback_url).
+ * This function allows us to attpemt to subscribe to my (Kyle's) strava webhook (start getting data from Strava).
  * @param {Object} req 
  * @param {Object} res 
  * @param {Object} next 
@@ -157,6 +158,7 @@ const postWebhookSubscription = async (req, res, next) => {
       res.status(400).json({ message: "Error subscribing to the webhook.", deleteUrl: `${getLocals(req, CALLBACK_URL)}/strava/subscribe/view`})
       return next()
     }
+    logNotionError("Error subscribing to the webhook", response)
     console.warn(`Error subscribing to webhook, response: ${JSON.stringify(response)}`);
     res.status(500).json({ message: "Error subscribing to the webhook."})
   }
@@ -173,6 +175,8 @@ const postWebhookSubscription = async (req, res, next) => {
   updates: {}
 }*/
 /**
+ * This function recieves subscription requests to my (Kyle's) strava. It let's Strava know 
+ * what url it should send webhook events to (callback_url).
  * Creates the endpoint for our webhook, supposed to be hit when an activity is created
  * @param {Object} req req object from the route
  * @param {Object} res res object from the route
@@ -181,6 +185,7 @@ const postWebhookSubscription = async (req, res, next) => {
 const recieveWebhookEvent = async (req, res, next) => {
   const token = getLocals(req, ACCESS_TOKEN);
   console.log("webhook event received!", req.query, req.body);
+  logNotionItem("Webhook Event", { object_type: req?.body?.object_type, aspect_type: req?.body?.aspect_type })
   switch (req?.body?.object_type) {
     case WEBHOOK_EVENT_TYPES.activity:
       switch (req?.body?.aspect_type) {
@@ -219,23 +224,16 @@ const recieveWebhookEvent = async (req, res, next) => {
               thingsToUpdate.properties.strava_id.rich_text[0].text.content
             );
           })?.id;
-          console.log("Notion thing:", JSON.stringify(notionId));
-          // updateNotionPage("615e955ef7c14182a13e091e3b62d89e", )
           updateNotionPage(notionId, thingsToUpdate);
-          console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           res.status(200).json({ message: "EVENT_RECEIEVED" });
           return next();
         case WEBHOOK_EVENTS.delete:
           const allThings = await deleteNotionPage(req?.body?.object_id);
-          console.log(
-            "Delete Activity:",
-            JSON.stringify(req?.body),
-            JSON.stringify(allThings)
-          );
           // Delete Notion Page, check to see we haven't already
           res.status(200).json({ message: "EVENT_RECEIEVED" });
           return next();
         default:
+          logNotionError("WARNING: Unexpected strava aspect_type", {aspect_type: req?.body?.aspect_type})
           console.warn(
             `WARNING: Unexpected strava aspect_type: ${req?.body?.aspect_type}`
           );
@@ -243,6 +241,7 @@ const recieveWebhookEvent = async (req, res, next) => {
           return next();
       }
     default:
+      logNotionError("Warning: Unexpected strava object_type", {object_type: req?.body.object_type})
       console.warn(
         `Warning: Unexpected strava object_type: ${req?.body?.object_type}`
       );
@@ -265,6 +264,7 @@ const testWebhookEvent = async (req, res, next) => {
   console.log(
     `Testing Webhook Event: ${eventToTest}, ${timeStamp}, ${subscriptionId}`
   );
+  logNotionItem(`Testing Webhook Event: ${eventToTest}`, { timeStamp, subscriptionId })
   const body = {
     name: `test webhook event ${eventToTest}`,
     aspect_type: eventToTest,
@@ -278,7 +278,6 @@ const testWebhookEvent = async (req, res, next) => {
   if (eventToTest == WEBHOOK_EVENTS.update) {
     body["updates"] = { name: "Updated name test" };
   }
-  console.log(`Date and sub id: ${(timeStamp, subscriptionId)}`);
 
   const requestOptions = {
     body: JSON.stringify(body),
@@ -350,6 +349,7 @@ const healthCheck = async (req, res, next) => {
     "Error while checking health of the app"
   );
   console.log("Health Check response:", response);
+  logNotionItem("Health Check", response)
   res.status(response.status).json({ message: { ...response?.data } });
   
 };
@@ -371,7 +371,6 @@ const viewSubscription = async (req, res, next) => {
     `https://www.strava.com/api/v3/push_subscriptions?client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}`,
     `Error while trying to view the subscriptions.`,
   );
-  console.log("view ------->", JSON.stringify(response));
   let message = { ...response }
   if (response.status == 200) {
     let callbackUrl = getLocals(req, CALLBACK_URL)

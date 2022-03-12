@@ -13,30 +13,12 @@ const { getActivityById } = require("../utils/stravaUtils");
 const { ACCESS_TOKEN } = LOCALS_KEYS;
 
 /**
- * The fallback function for the "notion/" route. It will also test out a few things.
- * 1. Tests out Strava getActivityById()
- * 2. Tests formatting the^ Strava object
- * 3. Tests adding that^ item to our notion database
- * 4. Tests getting all pages in our notion db that have a strava_id
+ * The fallback function for the "notion/" route.
  * @param {Object} req
  * @param {Object} res
  * @param {Object} next
  */
 const getFallback = async (req, res, next) => {
-  // const stravaResponse = await getActivityById("6606840419", getLocals(req, ACCESS_TOKEN))
-  // console.log(`Testing getActivityById("6606840419", getLocals(req, ACCESS_TOKEN)`)
-  // const formattedNotionObject = fmtNotionObject(stravaResponse)
-  // console.log(`Testing addNotionItem: adding: ${JSON.stringify(formattedNotionObject)}`)
-  // const addedItem = addNotionItem(formattedNotionObject);
-  // if (!addedItem) {
-  //   return res.status(500).json({ message: "Error adding item" })
-  // }
-  // const allStravaPages = await getAllStravaPages()
-  // const found = allStravaPages.filter(
-  //   (activity) =>
-  //     activity.properties.strava_id.rich_text[0].text.content == "6798333045"
-  // )[0]?.id;
-  // console.log("Testing getAllStravaPages() and searching for id 6798333045", found, JSON.stringify(allStravaPages));
   return res.status(200).json({ message: "hello from the notion route" });
 };
 
