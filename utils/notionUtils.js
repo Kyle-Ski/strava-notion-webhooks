@@ -26,80 +26,87 @@ const stravaFilter = {
  * }
  */
 const fmtNotionObject = (stravaObject) => {
-  console.log("Attempting to format the object:", JSON.stringify(stravaObject))
-  let returnObj = { parent: { database_id: process.env.NOTION_DATABASE_ID }, properties: {} };
+  console.log("Attempting to format the object:", JSON.stringify(stravaObject));
+  let returnObj = {
+    parent: { database_id: process.env.NOTION_DATABASE_ID },
+    properties: {},
+  };
   for (let key in stravaObject) {
     switch (key) {
       case "id":
       case "object_id":
         returnObj.properties["strava_id"] = {
-          rich_text: [{ text: { content: JSON.stringify(stravaObject[key]) } }]
-        }
-        continue
+          rich_text: [{ text: { content: JSON.stringify(stravaObject[key]) } }],
+        };
+        continue;
       case "title":
       case "name":
         returnObj.properties["Name"] = {
           title: [{ text: { content: stravaObject[key] } }],
         };
-        continue
+        continue;
       case "moving_time":
         returnObj.properties["Moving Time"] = {
           rich_text: [{ text: { content: secondsToTime(stravaObject[key]) } }],
         };
-        continue
+        continue;
       case "elapsed_time":
         returnObj.properties["Elapsed Time"] = {
           rich_text: [{ text: { content: secondsToTime(stravaObject[key]) } }],
         };
-        continue
+        continue;
       case "total_elevation_gain":
         returnObj.properties["Elevation Gain"] = {
           number: metersToFeet(stravaObject[key]),
         };
-        continue
+        continue;
       case "start_date_local":
         returnObj.properties["Date"] = { date: { start: stravaObject[key] } };
         returnObj.properties["Day"] = {
           multi_select: [{ name: dateToDayOfWeek(stravaObject[key]) }],
         };
-        continue
+        continue;
       case "average_speed":
         returnObj.properties["Average Speed"] = {
           number: metersPerSecToMph(stravaObject[key]),
         };
-        continue
+        continue;
       case "max_speed":
         returnObj.properties["Max Speed"] = {
           number: metersPerSecToMph(stravaObject[key]),
         };
-        continue
+        continue;
       case "average_temp":
         returnObj.properties["Average Temp"] = {
           rich_text: [
             {
               text: {
-                content: `${celciusToF(stravaObject[key])}°F | ${stravaObject[key]}°C`,
+                content: `${celciusToF(stravaObject[key])}°F | ${
+                  stravaObject[key]
+                }°C`,
               },
             },
           ],
         };
-        continue
+        continue;
       case "average_heartrate":
-        returnObj.properties["Average Heart Rate"] = { number: stravaObject[key] };
-        continue
+        returnObj.properties["Average Heart Rate"] = {
+          number: stravaObject[key],
+        };
+        continue;
       case "max_heartrate":
         returnObj.properties["Max Heart Rate"] = { number: stravaObject[key] };
-        continue
+        continue;
       case "elev_high":
         returnObj.properties["Max Elevation"] = {
           number: metersToFeet(stravaObject[key]),
         };
-        continue
+        continue;
       case "elev_low":
         returnObj.properties["Min Elevation"] = {
           number: metersToFeet(stravaObject[key]),
         };
-        continue
+        continue;
       case "type":
         returnObj.properties["Category"] = {
           select: { name: fmtCategoryType(stravaObject[key]) },
@@ -107,26 +114,38 @@ const fmtNotionObject = (stravaObject) => {
         returnObj.properties["Weight Category"] = {
           select: { name: fmtWeightCategoryType(stravaObject[key]) },
         };
-        continue
+        continue;
       case "distance":
         returnObj.properties["Distance"] = {
           number: metersToMiles(stravaObject[key]),
         };
-        continue
+        continue;
+      case "error_log":
+        returnObj.properties["error_log"] = {
+          rich_text: [
+            {
+              text: {
+                content: ``,
+              },
+            },
+          ],
+        };
     }
   }
   if (returnObj?.properties?.Name !== undefined) {
-    const { Name } = returnObj.properties
-    console.log("we're in here...", JSON.stringify(Name))
-    if(Name?.title?.text?.content?.toLowerCase()?.includes("dog") || Name?.title?.text?.content?.toLowerCase()?.includes("otis")) {
-      console.log("We should make this a dog walk")
+    const { Name } = returnObj.properties;
+    console.log("we're in here...", JSON.stringify(Name));
+    if (
+      Name?.title?.text?.content?.toLowerCase()?.includes("dog") ||
+      Name?.title?.text?.content?.toLowerCase()?.includes("otis")
+    ) {
+      console.log("We should make this a dog walk");
       returnObj.properties["Sub Category"] = {
         multi_select: [{ name: "Dog Walk" }],
-      }
-
+      };
     }
   }
-  
+
   returnObj["parent"] = { database_id: process.env.NOTION_DATABASE_ID };
   console.log("Created Object ------->", JSON.stringify(returnObj));
   return returnObj;
@@ -175,10 +194,11 @@ async function addNotionItem(itemToAdd) {
     const response = await notion.pages.create(itemToAdd);
     console.log("response:", response);
     console.log("Success! Entry added.");
-    return response
+    return response;
   } catch (error) {
+    logNotionError("Error creating page with notion sdk", error)
     console.error(`Error creating page with notion sdk: ${error.body}`);
-    return false
+    return false;
   }
 }
 
@@ -214,23 +234,32 @@ async function deleteNotionPage(id) {
       );
     }
   } catch (e) {
-    console.error("Error listing all notion pages:", e);
+    console.error("Error Deleteing Notion Page:", e);
+    logNotionError("Error Deleting Notion Page", e)
     return false;
   }
 }
 
 async function updateNotionPage(notionId, updateObject) {
   try {
-    updateObject.page_id = notionId
-    console.log(`Attempting to update ${JSON.stringify(notionId)} with ${JSON.stringify(updateObject)}`)
-    const response = await notion.pages.update(updateObject)
-    console.log(`Update response: ${JSON.stringify(response)}`)
-    return response
-  } catch(e) {
-    console.error(`Error attempting to update ${JSON.stringify(notionId)}. ERROR: ${JSON.stringify(e)}`)
-    return false
+    updateObject.page_id = notionId;
+    console.log(
+      `Attempting to update ${JSON.stringify(notionId)} with ${JSON.stringify(
+        updateObject
+      )}`
+    );
+    const response = await notion.pages.update(updateObject);
+    console.log(`Update response: ${JSON.stringify(response)}`);
+    return response;
+  } catch (e) {
+    console.error(
+      `Error attempting to update ${JSON.stringify(
+        notionId
+      )}. ERROR: ${JSON.stringify(e)}`
+    );
+    logNotionError(`Error attempting to update Notion Page`, e)
+    return false;
   }
-  
 }
 
 /**
@@ -242,8 +271,11 @@ async function getAllStravaPages() {
   config.filter = stravaFilter;
   let response = await notion.databases.query(config);
   if (!response?.results) {
-    console.warn("Error getting all strava pages from the Notion database", JSON.stringify(response))
-    return false
+    console.warn(
+      "Error getting all strava pages from the Notion database",
+      JSON.stringify(response)
+    );
+    return false;
   }
   let responseArray = [...response.results];
   while (response.has_more) {
@@ -256,10 +288,156 @@ async function getAllStravaPages() {
   return responseArray;
 }
 
+/**
+ * Gets the Notion Block Children by the block id
+ * @param {String} blockId notion Block Id
+ * @returns
+ */
+const getNotionBlockChildrenByBlockId = async (blockId) => {
+  try {
+    const response = await notion.blocks.children.list({
+      block_id: blockId,
+      page_size: 50,
+    });
+    return response;
+  } catch (e) {
+    console.error(`
+    Error getting Notion block by block id: ${blockId}
+    `);
+    return false;
+  }
+};
+
+/**
+ * Get a Notion block(s) by its(their) Notion page id
+ * @param {String} pageId Notion page id of block to get
+ * @returns false if there's an error
+ */
+const getNotionBlockByPageId = async (pageId) => {
+  try {
+    const response = await notion.blocks.retrieve({
+      block_id: pageId,
+    });
+    return response;
+  } catch (e) {
+    console.error(`
+    Error getting Notion block by page id: ${pageId}
+    `);
+    return false;
+  }
+};
+
+/**
+ * Gets a notion page by it's id.
+ * @param {String} pageId Notion page id to get
+ * @returns
+ */
+const getNotionPageById = async (pageId) => {
+  try {
+    const response = await notion.pages.retrieve({ page_id: pageId });
+    return response;
+  } catch (e) {
+    console.error(`
+    Error getting Notion page by id: ${pageId}
+    `);
+    logNotionError("Error Getting Notion Page By Id", e)
+    return false;
+  }
+};
+
+/**
+ *
+ * @param {String} errorTitle the title of the toggle that will hold the error
+ * @param {Object} error the error we wish to log to notion
+ */
+async function logNotionError(errorTitle, error) {
+  try {
+    const response = await notion.blocks.children.append({
+      block_id: "49a69f44-31e7-4cd1-a942-19293a19b47a", // Page ID of errors: "615e955ef7c14182a13e091e3b62d89e"
+      children: [
+        {
+          object: "block",
+          type: "toggle",
+          toggle: {
+            rich_text: [
+              {
+                type: "text",
+                text: {
+                  content: `${errorTitle} ${new Date()}`,
+                  link: null,
+                },
+              },
+            ],
+            color: "default",
+            children: [
+              {
+                type: "code",
+                code: {
+                  rich_text: [
+                    {
+                      type: "text",
+                      text: {
+                        content: JSON.stringify(error),
+                      },
+                    },
+                  ],
+                  language: "plain text",
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    console.log(`
+    Notion update block response:
+    ${JSON.stringify(response)}
+    `);
+    return response
+  } catch (e) {
+    console.error("Error logging to notion:", JSON.stringify(e));
+    return false;
+  }
+};
+
+/**
+ * Update a notion page by appending to the last block id in that page.
+ * @param {String} blockId Notion page block id to append to
+ * @param {Object} itemToAppend Formatted Notion object to add to page
+ * @returns
+ */
+const updateNotionPageContent = async (blockId, itemToAppend) => {
+  try {
+    itemToAppend["block_id"] = blockId;
+    const response = await notion.blocks.children.append(itemToAppend);
+    if (!response?.results) {
+      console.error(`
+        Error updating notion page content:
+        block_id: ${blockId}
+        itemToAppend: ${JSON.stringify(itemToAppend)}
+      `);
+      return false;
+    }
+    return response;
+  } catch (e) {
+    console.error(`
+      Error updating notion page content:
+      block_id: ${blockId}
+      itemToAppend: ${JSON.stringify(itemToAppend)}
+    `);
+    return false;
+  }
+};
+
 module.exports = {
   addNotionItem,
   fmtNotionObject,
   deleteNotionPage,
   getAllStravaPages,
+  getNotionBlockChildrenByBlockId,
+  getNotionBlockByPageId,
+  getNotionPageById,
+  logNotionError,
   updateNotionPage,
+  updateNotionPageContent,
 };

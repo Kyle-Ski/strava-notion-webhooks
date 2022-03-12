@@ -7,6 +7,7 @@ const express = require("express"),
 
 const { logObject } = require("./utils/jsUtils");
 const { connectNgrok } = require("./utils/ngrokUtils")
+const { logNotionError } = require("./utils/notionUtils")
 const { healthCheck } = require("./controllers/stravaController");
 const { logRequests, refreshStravaToken } = require("./middleware")
 const authRoutes = require("./routes/authRoutes");
@@ -62,5 +63,6 @@ app.use(errorHandler);
 function errorHandler(err, req, res, next) {
   console.error("errorHandler", err);
   const stack = process.env.NODE_ENV !== "production" ? err.stack : undefined;
+  // logNotionError(`errorHandler ERROR`, stack)
   res.status(500).send({ error: err.message, stack, url: req.originalUrl });
 }

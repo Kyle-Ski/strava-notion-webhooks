@@ -1,4 +1,5 @@
 const ngrok = require("ngrok");
+const { logNotionError } = require("./notionUtils")
 
 const connectNgrok = async (port, ngrokAuthToken, setLocalsUrl) => {
     console.log(
@@ -18,6 +19,7 @@ const connectNgrok = async (port, ngrokAuthToken, setLocalsUrl) => {
       return;
     } catch (e) {
       console.error("ERROR: error connecting ngrok:", e);
+      logNotionError("Error connecting ngrok:", e)
       throw new Error("Error connecting index.js to ngrok:", e);
     }
   };

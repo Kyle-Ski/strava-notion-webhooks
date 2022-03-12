@@ -186,6 +186,7 @@ const recieveWebhookEvent = async (req, res, next) => {
             );
           })?.id;
           console.log("Notion thing:", JSON.stringify(notionId));
+          // updateNotionPage("615e955ef7c14182a13e091e3b62d89e", )
           updateNotionPage(notionId, thingsToUpdate);
           console.log("Updated Activity:", JSON.stringify(thingsToUpdate));
           res.status(200).json({ message: "EVENT_RECEIEVED" });

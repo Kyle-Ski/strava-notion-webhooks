@@ -1,5 +1,5 @@
 const strava = require("strava-v3");
-
+const { logNotionError } = require("./notionUtils");
 /**
  * Gets a Strava Activity by it's id
  * @param {String} id Strava Activity ID
@@ -19,6 +19,7 @@ async function getActivityById(id, token) {
         Error getting strava activity by id: ${id}
         ERROR: ${e}
       `);
+    logNotionError("Error Getting Strava Activity By Id", e);
     return false;
   }
 }
@@ -36,6 +37,7 @@ async function getAllActivities(token) {
     return payload;
   } catch (e) {
     console.error("Error listing all activities");
+    logNotionError("Error getting all Strava Activities", e)
     return false;
   }
 }

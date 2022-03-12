@@ -3,6 +3,8 @@ const fetch = require("node-fetch");
 const { LOCALS_KEYS } = require("../constants");
 const { getLocals, setLocals } = require("../utils/localsUtils");
 const { logObject } = require("../utils/jsUtils");
+const { logNotionError } = require("../utils/notionUtils");
+const { response } = require("express");
 
 const fetchOauthToken = async (code, res, req) => {
   //https://www.strava.com/oauth/accept_application?client_id=78993&redirect_uri=BASE_URL:https%3A%2F%2F4c0a-65-156-41-108.ngrok.io%2Fauth%2Fexchange_token&response_type=code&scope=activity%3Aread%2Cread%2Cread_all
@@ -42,6 +44,7 @@ const fetchOauthToken = async (code, res, req) => {
       "ERROR: error exchanging tokens with https://www.strava.com/api/v3/oauth/token",
       e
     );
+    logNotionError("Error exchanging tokens with Strava", e)
     res
       .status(500)
       .json({
@@ -66,7 +69,25 @@ const exchangeTokens = (req, res, next) => {
   }
 };
 
+const testThrowError = async (req, res, next) => {
+  const testErrorLog = {
+
+  }
+  // logNotionError("Test Error Title", {message:`
+  // Throwing an error for testing purposes...
+  // ${req?.method}: "${req?.url}"
+  // originalUrl: "${req?.originalUrl}"
+  // ` })
+  return new Error(`
+  Throwing an error for testing purposes...
+  ${req?.method}: "${req?.url}"
+  originalUrl: "${req?.originalUrl}"
+  `)
+  
+}
+
 module.exports = {
   exchangeTokens,
   getFallback,
+  testThrowError,
 };
