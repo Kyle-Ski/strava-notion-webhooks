@@ -3,6 +3,7 @@ require("dotenv").config();
 const { checkTimeExpired } = require("./utils/unitConversionUtils");
 const { getLocals, setLocals } = require("./utils/localsUtils");
 const { responseBuilder } = require("./utils/httpUtils");
+const { logNotionError } = require("./utils/notionUtils")
 const { LOCALS_KEYS } = require("./constants");
 
 const {
@@ -42,6 +43,7 @@ const setNewCreds = async (newCredentials, req) => {
     return true;
   } catch (e) {
     console.error("Error setting new credentials:", e);
+    logNotionError("Error setting new credentials:", e)
     return false;
   }
 };
@@ -79,7 +81,7 @@ const refreshStravaToken = async (req, res, next) => {
   let timeExpired = checkTimeExpired(getLocals(req, EXPIRES_AT));
   console.log("Time expired?", timeExpired);
   let currentRefreshToken = getLocals(req, REFRESH_TOKEN);
-  if (timeExpired) {
+  if (timeExpired && currentRefreshToken) {
     const newCreds = await fetchNewTokens(currentRefreshToken);
     console.log(`
         New Credentials:
@@ -88,11 +90,17 @@ const refreshStravaToken = async (req, res, next) => {
 
     if (!newCreds?.status || !newCreds?.data || newCreds?.status !== 200) {
       console.error("Error refreshing the tokens...", JSON.stringify(newCreds));
+      logNotionError("Error refreshing the tokens", newCreds)
       return next();
     }
 
     setNewCreds(newCreds.data, req);
     return next();
+  }
+
+  if(!currentRefreshToken) {
+    console.error("Error refreshing the tokens, no refresh_token present")
+    return next()
   }
   console.log("Time hasn't expired, so let's just keep on doing things");
   return next();

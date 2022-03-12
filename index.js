@@ -7,6 +7,7 @@ const express = require("express"),
 
 const { logObject } = require("./utils/jsUtils");
 const { connectNgrok } = require("./utils/ngrokUtils")
+const { logNotionError } = require("./utils/notionUtils")
 const { healthCheck } = require("./controllers/stravaController");
 const { logRequests, refreshStravaToken } = require("./middleware")
 const authRoutes = require("./routes/authRoutes");
@@ -50,17 +51,18 @@ app.get("/health", async (req, res, next) => {
 });
 
 
-// app.use(notFound);
+app.use(notFound);
 app.use(errorHandler);
 
-// function notFound(err, req, res, next) {
-//   res
-//     .status(404)
-//     .send({ error: "Not found!", status: 404, url: req.originalUrl });
-// }
+function notFound(err, req, res, next) {
+  res
+    .status(404)
+    .send({ error: "Not found!", status: 404, url: req.originalUrl });
+}
 
 function errorHandler(err, req, res, next) {
   console.error("errorHandler", err);
   const stack = process.env.NODE_ENV !== "production" ? err.stack : undefined;
+  logNotionError(`errorHandler ERROR`, stack)
   res.status(500).send({ error: err.message, stack, url: req.originalUrl });
 }
