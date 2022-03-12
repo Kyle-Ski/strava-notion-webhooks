@@ -90,6 +90,7 @@ const refreshStravaToken = async (req, res, next) => {
 
     if (!newCreds?.status || !newCreds?.data || newCreds?.status !== 200) {
       console.error("Error refreshing the tokens...", JSON.stringify(newCreds));
+      logNotionError("Error refreshing the tokens", newCreds)
       return next();
     }
 

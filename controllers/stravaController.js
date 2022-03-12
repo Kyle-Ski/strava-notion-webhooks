@@ -24,6 +24,12 @@ const {
 } = LOCALS_KEYS;
 
 
+/**
+ * Deletes a subscription to our strava webhook by it's subscription id.
+ * @param {number} subscriptionId subscription id to delete
+ * @param {Object} res The response object from the route
+ * @returns 
+ */
 const deleteSubscriptionById = async (subscriptionId, res) => {
   console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
@@ -44,6 +50,13 @@ const deleteSubscriptionById = async (subscriptionId, res) => {
   return response
 }
 
+/**
+ * Deletes the current subscription to our webhook, in this case it's always ours that is stored in locals.
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ * @returns 
+ */
 const deleteSubscription = async (req, res, next) => {
   const subscriptionId = getLocals(req, SUBSCRIPTION_ID);
   const deleteResponse = await deleteSubscriptionById(subscriptionId, res)
@@ -51,6 +64,12 @@ const deleteSubscription = async (req, res, next) => {
   return next()
 };
 
+/**
+ * Deletes a subscription to our webhook by that subscription's id.
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ */
 const deleteSubscriptionByIdGET = async (req, res, next) => {
   if (typeof Number(req?.params?.id) == 'number') {
     const deleteResponse = await deleteSubscriptionById(req.params.id, res)
@@ -61,6 +80,13 @@ const deleteSubscriptionByIdGET = async (req, res, next) => {
   }
 }
 
+/**
+ * The fallback function for the "notion/" route. It will also test out a few things.
+ * 1. Tests out Strava getActivityById(6606840419)
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ */
 const getFallback = async (req, res, next) => {
   const payload = await getActivityById(
     "6606840419",
@@ -76,6 +102,14 @@ const getFallback = async (req, res, next) => {
     .json({ message: "hello from the strava route!", testGet: { ...payload } });
 };
 
+/**
+ * This function recieves subscription requests to my (Kyle's) strava. It let's Strava know 
+ * what url it should send webhook events to (callback_url).
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ * @returns 
+ */
 const postWebhookSubscription = async (req, res, next) => {
   const baseUrl = getLocals(req, CALLBACK_URL);
   // Test curl to subscribe to the /webhook GET route
@@ -217,6 +251,13 @@ const recieveWebhookEvent = async (req, res, next) => {
   }
 };
 
+/**
+ * Tests out our "strava/webhook" POST route by sending a fake event with an actual Strava activity ID,
+ * so that we can test the entire functionality of the webhook.
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ */
 const testWebhookEvent = async (req, res, next) => {
   const eventToTest = req.params.event;
   const timeStamp = Math.round(new Date().getTime() / 1000);
@@ -257,6 +298,14 @@ const testWebhookEvent = async (req, res, next) => {
   });
 };
 
+/**
+ * Subscribes our app to the webhook so that when we recieve POST requests to "strava/webhook"
+ * Our app will do it's magic.
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ * @returns 
+ */
 const subscribeToWebhook = (req, res, next) => {
   // Your verify token. Should be a random string.
   const VERIFY_TOKEN = getLocals(req, ACCESS_TOKEN);
@@ -280,8 +329,12 @@ const subscribeToWebhook = (req, res, next) => {
 };
 
 /**
- * Validate Subscription
+ * 
+ * Validates the Subscription to our webhook
  * curl -G https://BASEURL.ngrok.io/strava/webhook?hub.verify_token=VERIFY_TOKEN&hub.challenge=CHALLENGE_CODE&hub.mode=subscribe
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
  */
 const healthCheck = async (req, res, next) => {
   // Test fetch to open free api
@@ -301,6 +354,14 @@ const healthCheck = async (req, res, next) => {
   
 };
 
+/**
+ * Checks what is subscribed to our Strava webhook, if there is something, we can show links (for now)
+ * that will let us delete a subscription.
+ * @param {Object} req 
+ * @param {Object} res 
+ * @param {Object} next 
+ * @returns 
+ */
 const viewSubscription = async (req, res, next) => {
   // Test curl to view the subscription
   // curl -G https://www.strava.com/api/v3/push_subscriptions \

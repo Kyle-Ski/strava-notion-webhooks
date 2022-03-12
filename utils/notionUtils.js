@@ -120,16 +120,6 @@ const fmtNotionObject = (stravaObject) => {
           number: metersToMiles(stravaObject[key]),
         };
         continue;
-      case "error_log":
-        returnObj.properties["error_log"] = {
-          rich_text: [
-            {
-              text: {
-                content: ``,
-              },
-            },
-          ],
-        };
     }
   }
   if (returnObj?.properties?.Name !== undefined) {
@@ -351,9 +341,11 @@ const getNotionPageById = async (pageId) => {
  * @param {Object} error the error we wish to log to notion
  */
 async function logNotionError(errorTitle, error) {
+  const notionBlock = await getNotionBlockByPageId("615e955ef7c14182a13e091e3b62d89e")
+  console.log("NOTION BLOCK:", notionBlock)
   try {
     const response = await notion.blocks.children.append({
-      block_id: "49a69f44-31e7-4cd1-a942-19293a19b47a", // Page ID of errors: "615e955ef7c14182a13e091e3b62d89e"
+      block_id: '615e955e-f7c1-4182-a13e-091e3b62d89e', // Page ID of errors: "615e955ef7c14182a13e091e3b62d89e"
       children: [
         {
           object: "block",
@@ -425,6 +417,7 @@ const updateNotionPageContent = async (blockId, itemToAppend) => {
       block_id: ${blockId}
       itemToAppend: ${JSON.stringify(itemToAppend)}
     `);
+    logNotionError("Error updating notion page content", itemToAppend)
     return false;
   }
 };
