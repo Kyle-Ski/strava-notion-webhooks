@@ -5,7 +5,7 @@
  */
 const fmtCategoryType = (type) => {
   let categoryType = "";
-  console.log(`Formatting Category Type ${type}`);
+  // console.log(`Formatting Category Type ${type}`);
   switch (type) {
     case "Hike":
       categoryType = "Hikes";
@@ -22,7 +22,7 @@ const fmtCategoryType = (type) => {
  * @returns
  */
 const fmtWeightCategoryType = (type) => {
-  console.log(`Formatting Weight Category Type ${type}`);
+  // console.log(`Formatting Weight Category Type ${type}`);
   switch (type) {
     case "Alpine Ski":
     case "Backcountry Ski":
