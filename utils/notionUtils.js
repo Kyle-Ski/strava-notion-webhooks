@@ -175,15 +175,12 @@ const getDatabaseQueryConfig = (
  */
 async function addNotionItem(itemToAdd) {
   try {
-    if (strava_id === undefined) {
-      logNotionError("Error Creating Notion Page", {location: "addNotionItem()", message: " `strava_id` was undefined"})
-    }
     const response = await notion.pages.create(itemToAdd);
     console.log("Success! Notion Entry added.");
     return response;
   } catch (error) {
     logNotionError("Error creating page with notion sdk", error)
-    console.error(`Error creating page with notion sdk: ${error.body}`);
+    console.error(`Error creating page with notion sdk: ${error}`);
     return false;
   }
 }

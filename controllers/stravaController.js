@@ -185,7 +185,7 @@ const postWebhookSubscription = async (req, res, next) => {
 const recieveWebhookEvent = async (req, res, next) => {
   const token = getLocals(req, ACCESS_TOKEN);
   console.log("webhook event received!", req.query, req.body);
-  logNotionItem("Webhook Event", { object_type: req?.body?.object_type, aspect_type: req?.body?.aspect_type })
+  logNotionItem("Webhook Event", { object_type: req?.body?.object_type, aspect_type: req?.body?.aspect_type, body: req.body })
   switch (req?.body?.object_type) {
     case WEBHOOK_EVENT_TYPES.activity:
       switch (req?.body?.aspect_type) {
