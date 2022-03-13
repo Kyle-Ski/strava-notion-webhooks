@@ -119,16 +119,20 @@ const fmtNotionObject = (stravaObject) => {
           number: metersToMiles(stravaObject[key]),
         };
         continue;
+      case "relation":
+        returnObj.properties["Exercises Done"] = {
+          relation: stravaObject[key]
+        }
+        continue
     }
   }
-  if (returnObj?.properties?.Name !== undefined) {
+  if (returnObj?.properties?.Name !== undefined && Name?.title?.length > 0) {
     const { Name } = returnObj.properties;
     console.log("we're in here...", JSON.stringify(Name));
     if (
-      Name?.title?.text?.content?.toLowerCase()?.includes("dog") ||
-      Name?.title?.text?.content?.toLowerCase()?.includes("otis")
+      Name?.title[0].text?.content?.toLowerCase()?.includes("dog") ||
+      Name?.title[0].text?.content?.toLowerCase()?.includes("otis")
     ) {
-      console.log("We should make this a dog walk");
       returnObj.properties["Sub Category"] = {
         multi_select: [{ name: "Dog Walk" }],
       };
@@ -456,10 +460,52 @@ const updateNotionPageContent = async (blockId, itemToAppend) => {
   }
 };
 
+/**
+ * Gets all items in a notion database, right now we're using this to get the 
+ * Exercise db as relations to our Agenda 2.0
+ * @param {String} dataBaseId Notion DB id for the relations we want to get.
+ * @returns 
+ */
+const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATABASE_ID) => {
+  try {
+    const config = getDatabaseQueryConfig(null, null, dataBaseId)
+    let response = await notion.databases.query(config)
+    return response
+  
+  } catch (e) {
+    logNotionError("Error Getting Exercise DB", e)
+    console.warn("Error Getting Exercise DB", e)
+    return false
+  }
+}
+
+/**
+ * Updates a notion page's "Exercises Done" relation property
+ * @param {String} notionId the id of the notion page we want to up date relations in.
+ * @param {Array} relationTitle array of Strings containing the relation titles to add.
+ * @returns 
+ */
+const updateRelations = async (notionId, relationTitle) => {
+  const exercises = await getNotionRelations()
+  let foundIds = relationTitle.map(relation => {
+    let id = exercises?.results?.find(item => {
+      let itemTextKey = item.properties.Name.type
+      console.log(`
+      item text content: ${JSON.stringify(item.properties.Name[itemTextKey][0].text.content)}
+      `)
+      return item.properties.Name[itemTextKey][0].text.content == relation
+    })?.id
+    return {id}
+  })
+  const relationToAdd = fmtNotionObject({relation: foundIds})
+  return updateNotionPage(notionId, relationToAdd)
+}
+
 module.exports = {
   addNotionItem,
   fmtNotionObject,
   deleteNotionPage,
+  updateRelations,
   getAllStravaPages,
   getNotionBlockChildrenByBlockId,
   getNotionBlockByPageId,

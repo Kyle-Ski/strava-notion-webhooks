@@ -7,6 +7,7 @@ const {
   addNotionItem,
   logNotionError,
   logNotionItem,
+  updateRelations,
 } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
@@ -56,7 +57,18 @@ const testLog = async (req, res, next) => {
   res.status(200).json({ message: "Test log success!" });
 };
 
+const testNotionRelation = async (req, res, next) => {
+  //https://www.notion.so/kalestew/Trip-to-the-PO-with-Otis-48402d5bf851432c862998c5aa2a5531
+  const response = await updateRelations("48402d5bf851432c862998c5aa2a5531", ["Plank", "Fly"])
+  if (!response) {
+    res.status(500).json({ message: "Unable to test updating a notion relation."})
+    return next()
+  }
+  res.status(200).json({ message: "Successfully tested updating notion relations!"})
+}
+
 module.exports = {
   getFallback,
   testLog,
+  testNotionRelation,
 };
