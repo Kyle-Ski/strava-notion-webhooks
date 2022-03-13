@@ -172,14 +172,14 @@ const getDatabaseQueryConfig = (
 /**
  * Create a Notion page by passing in a formatted Strava Activity object (TO BE CREATED AS A CONSTANT?)
  * @param {Object} itemToAdd the Strava activity we're going to use to create a Notion page
- */
+ * */
 async function addNotionItem(itemToAdd) {
   try {
     const response = await notion.pages.create(itemToAdd);
     console.log("Success! Notion Entry added.");
     return response;
   } catch (error) {
-    logNotionError("Error creating page with notion sdk", error)
+    logNotionError("Error creating page with notion sdk", error);
     console.error(`Error creating page with notion sdk: ${error}`);
     return false;
   }
@@ -211,12 +211,16 @@ async function deleteNotionPage(id) {
       console.log("delete response:", response);
       return true;
     } else {
-      console.error(`Delete Error: Couldn't find notion id to delete with matching strava_id: ${id}`)
-      logNotionError("Delete Error", {message: `Couldn't find notion id to delete with matching strava_id: ${id}`})
+      console.error(
+        `Delete Error: Couldn't find notion id to delete with matching strava_id: ${id}`
+      );
+      logNotionError("Delete Error", {
+        message: `Couldn't find notion id to delete with matching strava_id: ${id}`,
+      });
     }
   } catch (e) {
     console.error("Error Deleteing Notion Page:", e);
-    logNotionError("Error Deleting Notion Page", e)
+    logNotionError("Error Deleting Notion Page", e);
     return false;
   }
 }
@@ -232,7 +236,7 @@ async function updateNotionPage(notionId, updateObject) {
         notionId
       )}. ERROR: ${JSON.stringify(e)}`
     );
-    logNotionError(`Error attempting to update Notion Page`, e)
+    logNotionError(`Error attempting to update Notion Page`, e);
     return false;
   }
 }
@@ -246,7 +250,10 @@ async function getAllStravaPages() {
   config.filter = stravaFilter;
   let response = await notion.databases.query(config);
   if (!response?.results) {
-    logNotionError("Error getting all strava pages from the Notion database", response)
+    logNotionError(
+      "Error getting all strava pages from the Notion database",
+      response
+    );
     console.warn(
       "Error getting all strava pages from the Notion database",
       JSON.stringify(response)
@@ -316,7 +323,7 @@ const getNotionPageById = async (pageId) => {
     console.error(`
     Error getting Notion page by id: ${pageId}
     `);
-    logNotionError("Error Getting Notion Page By Id", e)
+    logNotionError("Error Getting Notion Page By Id", e);
     return false;
   }
 };
@@ -327,22 +334,23 @@ const getNotionPageById = async (pageId) => {
  * @param {Object} error the error we wish to log to notion
  */
 async function logNotionError(errorTitle, error) {
-  const notionErrorPageId = "615e955ef7c14182a13e091e3b62d89e" // The page we're logging errors out to
-  const logItem = createLogItem(error, errorTitle)
-  const notionBlock = await getNotionBlockByPageId(notionErrorPageId) // We can use this to get the block id we want to append to
+  const notionErrorPageId = "615e955ef7c14182a13e091e3b62d89e"; // The page we're logging errors out to
+  const logItem = createLogItem(error, errorTitle);
+  const notionBlock = await getNotionBlockByPageId(notionErrorPageId); // We can use this to get the block id we want to append to
   // console.log("NOTION BLOCK:", notionBlock)
-  const notionErrorPageBlockId = notionBlock?.id // "615e955e-f7c1-4182-a13e-091e3b62d89e" 
-  return updateNotionPageContent(notionErrorPageBlockId, logItem)
-};
+  const notionErrorPageBlockId = notionBlock?.id; // "615e955e-f7c1-4182-a13e-091e3b62d89e"
+  return updateNotionPageContent(notionErrorPageBlockId, logItem);
+}
 
 /**
  * Creates a toggle block in notion with content that will be JSON.stringify(ed)
  * @param {Object} itemToLog whatever you want to JSON.stringify
- * @param {*} logTitle 
- * @returns 
+ * @param {String} logTitle Title of the log
+ * @param {String} url if we want to create a link
+ * @returns
  */
-const createLogItem = (itemToLog, logTitle) => {
-   return {
+const createLogItem = (itemToLog, logTitle, url = false) => {
+  let logItem = {
     children: [
       {
         object: "block",
@@ -377,17 +385,46 @@ const createLogItem = (itemToLog, logTitle) => {
         },
       },
     ],
-  }
-}
+  };
 
-const logNotionItem = async (logTitle, log) => {
-  const notionLogPageId = "8ab781288fcb437bbfffaaf1c88db0b4"
-  const logItem = createLogItem(log, logTitle)
-  const notionBlock = await getNotionBlockByPageId(notionLogPageId)
+  if (url) {
+    logItem.children.push({
+      type: "paragraph",
+      paragraph: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: url,
+              link: {
+                url: url,
+              },
+            },
+            plain_text: url,
+            href: url,
+          },
+        ],
+      },
+    });
+  }
+
+  return logItem;
+};
+/**
+ * Logs an item to the notion page "Logs: strava-notion-webhooks"
+ * @param {*} logTitle Title of the log
+ * @param {*} log Message/data to log in Notion
+ * @param {Object} url create link with this as the url
+ * @returns
+ */
+const logNotionItem = async (logTitle, log, url = false) => {
+  const notionLogPageId = "8ab781288fcb437bbfffaaf1c88db0b4";
+  let logItem = createLogItem(log, logTitle, url);
+  const notionBlock = await getNotionBlockByPageId(notionLogPageId);
   // console.log("logNotionItem", JSON.stringify(notionBlock))
-  const notionLogPageBlockId = notionBlock?.id //"8ab78128-8fcb-437b-bfff-aaf1c88db0b4"
-  return updateNotionPageContent(notionLogPageBlockId, logItem)
-}
+  const notionLogPageBlockId = notionBlock?.id; //"8ab78128-8fcb-437b-bfff-aaf1c88db0b4"
+  return updateNotionPageContent(notionLogPageBlockId, logItem);
+};
 
 /**
  * Update a notion page by appending to the last block id in that page.
@@ -414,7 +451,7 @@ const updateNotionPageContent = async (blockId, itemToAppend) => {
       block_id: ${blockId}
       itemToAppend: ${JSON.stringify(itemToAppend)}
     `);
-    logNotionError("Error updating notion page content", itemToAppend)
+    logNotionError("Error updating notion page content", itemToAppend);
     return false;
   }
 };

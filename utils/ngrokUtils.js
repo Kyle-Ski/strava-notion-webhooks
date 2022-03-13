@@ -11,7 +11,8 @@ const connectNgrok = async (port, ngrokAuthToken, setLocalsUrl) => {
       addr: port,
     });
     setLocalsUrl(url);
-    logNotionItem("Ngrok URL", { url, authUrl: `https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`});
+    let authUrl = `https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`
+    logNotionItem("Ngrok URL", { url, authUrl }, authUrl);
     console.log(
       "url:",
       url.split("https://")[1],
