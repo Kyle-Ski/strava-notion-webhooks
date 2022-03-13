@@ -10,7 +10,7 @@ const fmtActivityToExerciseDoneRelation = (type) => {
       return ["Hike"];
     case "Run":
       return ["Run"];
-    case "Weight Training":
+    case "WeightTraining":
       return [
         "Cat Cow",
         "Asian Squat",

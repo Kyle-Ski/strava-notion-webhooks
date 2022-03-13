@@ -15,6 +15,7 @@ const {
   getAllStravaPages,
   logNotionError,
   logNotionItem,
+  updateRelations
 } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
@@ -199,9 +200,11 @@ const recieveWebhookEvent = async (req, res, next) => {
           const formattedNotionObject = fmtNotionObject(payload);
           const relationOptions = formattedNotionObject.properties["Exercises Done"]["relation"]
           console.log("relationOptions1:", JSON.stringify(relationOptions))
-          if (relationOptions.length > 0) {
+          console.log("payload:", JSON.stringify(payload))
+          if (relationOptions.length == 0) {
             console.log("relationOptions:", JSON.stringify(relationOptions))
             const exerciseRelations = await updateRelations(relationOptions)
+            console.log("exerciseRelations:", JSON.stringify(exerciseRelations))
             formattedNotionObject.properties["Exercises Done"].relation = exerciseRelations
             console.log("formattedNotionObject:", JSON.stringify(formattedNotionObject))
           }
