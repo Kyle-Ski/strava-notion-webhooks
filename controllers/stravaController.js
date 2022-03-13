@@ -165,6 +165,55 @@ const postWebhookSubscription = async (req, res, next) => {
   }
 };
 
+const createWebhookEvent = async (req, res, next) => {
+  const token = getLocals(req, ACCESS_TOKEN);
+  // Create Notion page, check to see we haven't already
+  const payload = await getActivityById(req.body.object_id, token);
+  if (!payload) {
+    res.status(200).json({ message: "EVENT_RECEIEVED" });
+    return next();
+  }
+  const formattedNotionObject = await fmtNotionObject(payload, true);
+  addNotionItem(formattedNotionObject);
+  res.status(200).json({ message: "EVENT_RECEIEVED" });
+  return next();
+}
+
+const updateWebhookEvent = async (req, res, next) => {
+  const token = getLocals(req, ACCESS_TOKEN);
+  // Update Notion page, check to see we havent already
+  // Updates will be contained in req.body.updates
+  const updatedActivity = await getActivityById(
+    req?.body?.object_id,
+    token
+  );
+  if (!updatedActivity) {
+    res.status(200).json({ message: "EVENT_RECEIEVED" });
+    return next();
+  }
+  // Right now we're not going to update any "Exercises Done", relations
+  // When we get a strava webhook update event
+  const thingsToUpdate = await fmtNotionObject(updatedActivity);
+  const allStravaPages = await getAllStravaPages();
+  if (!allStravaPages) {
+    res.status(200).json({ message: "EVENT_RECEIEVED" });
+    return next();
+  }
+  const notionId = allStravaPages.find((item) => {
+    return (
+      item.properties?.strava_id?.rich_text[0]?.text?.content ==
+      thingsToUpdate.properties?.strava_id?.rich_text[0]?.text?.content
+    );
+  })?.id;
+  if (!notionId) {
+    logNotionItem("Update From Unknown Strava Activity", "We're going to make a new notion page")
+    return createWebhookEvent(req, res, next)
+  }
+  updateNotionPage(notionId, thingsToUpdate);
+  res.status(200).json({ message: "EVENT_RECEIEVED" });
+  return next();
+}
+
 /* Webhook event example:
 {
   aspect_type: 'delete',
@@ -191,55 +240,11 @@ const recieveWebhookEvent = async (req, res, next) => {
     case WEBHOOK_EVENT_TYPES.activity:
       switch (req?.body?.aspect_type) {
         case WEBHOOK_EVENTS.create:
-          // Create Notion page, check to see we haven't already
-          const payload = await getActivityById(req.body.object_id, token);
-          if (!payload) {
-            res.status(200).json({ message: "EVENT_RECEIEVED" });
-            return next();
-          }
-          const formattedNotionObject = fmtNotionObject(payload);
-          const relationOptions = formattedNotionObject.properties["Exercises Done"]["relation"]
-          console.log("relationOptions1:", JSON.stringify(relationOptions))
-          console.log("payload:", JSON.stringify(payload))
-          if (relationOptions.length == 0) {
-            console.log("relationOptions:", JSON.stringify(relationOptions))
-            const exerciseRelations = await updateRelations(relationOptions)
-            console.log("exerciseRelations:", JSON.stringify(exerciseRelations))
-            formattedNotionObject.properties["Exercises Done"].relation = exerciseRelations
-            console.log("formattedNotionObject:", JSON.stringify(formattedNotionObject))
-          }
-
-          addNotionItem(formattedNotionObject);
-          res.status(200).json({ message: "EVENT_RECEIEVED" });
-          return next();
+          return createWebhookEvent(req, res, next)
         case WEBHOOK_EVENTS.update:
-          // Update Notion page, check to see we havent already
-          // Updates will be contained in req.body.updates
-          const updatedActivity = await getActivityById(
-            req?.body?.object_id,
-            token
-          );
-          if (!updatedActivity) {
-            res.status(200).json({ message: "EVENT_RECEIEVED" });
-            return next();
-          }
-          const thingsToUpdate = fmtNotionObject(updatedActivity);
-          const allStravaPages = await getAllStravaPages();
-          if (!allStravaPages) {
-            res.status(200).json({ message: "EVENT_RECEIEVED" });
-            return next();
-          }
-          const notionId = allStravaPages.find((item) => {
-            return (
-              item.properties.strava_id.rich_text[0].text.content ==
-              thingsToUpdate.properties.strava_id.rich_text[0].text.content
-            );
-          })?.id;
-          updateNotionPage(notionId, thingsToUpdate);
-          res.status(200).json({ message: "EVENT_RECEIEVED" });
-          return next();
+          return updateWebhookEvent(req, res, next)
         case WEBHOOK_EVENTS.delete:
-          const allThings = await deleteNotionPage(req?.body?.object_id);
+          deleteNotionPage(req?.body?.object_id);
           // Delete Notion Page, check to see we haven't already
           res.status(200).json({ message: "EVENT_RECEIEVED" });
           return next();

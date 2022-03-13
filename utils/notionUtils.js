@@ -17,6 +17,19 @@ const stravaFilter = {
   and: [{ property: "strava_id", rich_text: { is_not_empty: true } }],
 };
 
+const addRelations = async (objToFormat) => {
+  let returnObj = objToFormat
+  let relationArray = objToFormat?.properties["Exercises Done"]?.relation
+  if (relationArray.length > 0) {
+    const relations = await updateRelations(relationArray)
+    returnObj.properties["Exercises Done"].relation = relations
+    console.log("Return Obj:", JSON.stringify(returnObj))
+    return returnObj  
+  } else {
+    return false
+  }
+}
+
 /**
  * Formats the strava.activities.get response into the correct shape for notion.pages.update()
  * @param {Object} stravaObject
@@ -25,7 +38,7 @@ const stravaFilter = {
  *    properties: {}
  * }
  */
-const fmtNotionObject = (stravaObject) => {
+const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
   let returnObj = {
     parent: { database_id: process.env.NOTION_DATABASE_ID },
     properties: {},
@@ -113,23 +126,14 @@ const fmtNotionObject = (stravaObject) => {
         returnObj.properties["Weight Category"] = {
           select: { name: fmtWeightCategoryType(stravaObject[key]) },
         };
-        // const relationOptions = fmtActivityToExerciseDoneRelation(stravaObject[key])
-        // console.log("relationOptions:", JSON.stringify(relationOptions))
-        // const exerciseRelations = await updateRelations(relationOptions)
-        returnObj.properties["Exercises Done"] = {
-          relation: fmtActivityToExerciseDoneRelation(stravaObject[key])
-        }
         continue;
       case "distance":
         returnObj.properties["Distance"] = {
           number: metersToMiles(stravaObject[key]),
         };
         continue;
-      // case "relation":
-      //   returnObj.properties["Exercises Done"] = {
-      //     relation: stravaObject[key]
-      //   }
-      //   continue
+      default:
+        continue
     }
   }
   if (returnObj?.properties?.Name !== undefined && returnObj?.properties?.Name?.title?.length > 0) {
@@ -146,6 +150,13 @@ const fmtNotionObject = (stravaObject) => {
   }
 
   returnObj["parent"] = { database_id: process.env.NOTION_DATABASE_ID };
+
+  if (shouldAddRelations) {
+    returnObj.properties["Exercises Done"] = {
+      relation: fmtActivityToExerciseDoneRelation(stravaObject?.type)
+    }
+    return await addRelations(returnObj)
+  }
   return returnObj;
 };
 
@@ -238,7 +249,6 @@ async function deleteNotionPage(id) {
 
 async function updateNotionPage(notionId, updateObject) {
   try {
-    console.log("-->", JSON.stringify(updateObject))
     updateObject.page_id = notionId;
     const response = await notion.pages.update(updateObject);
     return response;
