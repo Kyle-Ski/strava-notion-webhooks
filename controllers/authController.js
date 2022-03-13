@@ -31,7 +31,7 @@ const fetchOauthToken = async (code, res, req) => {
     const response = await request.json();
     console.log("response:", response);
     // Set the app.locals for the authentication
-    // TODO obfuscate these? Maybe create a getter and setter?
+    // TODO obfuscate these?
     setLocals(req, LOCALS_KEYS.EXPIRES_AT, response?.expires_at);
     setLocals(req, LOCALS_KEYS.REFRESH_TOKEN, response?.refresh_token);
     setLocals(req, LOCALS_KEYS.ACCESS_TOKEN, response?.access_token);
