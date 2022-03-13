@@ -3,7 +3,7 @@ require("dotenv").config();
 const { checkTimeExpired } = require("./utils/unitConversionUtils");
 const { getLocals, setLocals } = require("./utils/localsUtils");
 const { responseBuilder } = require("./utils/httpUtils");
-const { logNotionError } = require("./utils/notionUtils")
+const { logNotionError, logNotionItem } = require("./utils/notionUtils")
 const { LOCALS_KEYS } = require("./constants");
 
 const {
@@ -93,13 +93,15 @@ const refreshStravaToken = async (req, res, next) => {
       logNotionError("Error refreshing the tokens", newCreds)
       return next();
     }
-
+    logNotionItem("Refresh Token Success", { message: "setting new creds" })
     setNewCreds(newCreds.data, req);
     return next();
   }
 
   if(!currentRefreshToken) {
-    console.error("Error refreshing the tokens, no refresh_token present")
+    let errMessage = "Error refreshing the tokens, no refresh_token present"
+    logNotionError(errMessage, {message: "no refresh_token present"})
+    console.error(errMessage)
     return next()
   }
   console.log("Time hasn't expired, so let's just keep on doing things");
