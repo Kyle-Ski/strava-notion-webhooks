@@ -1,4 +1,34 @@
 /**
+ * Formats Strava Activity type into the exercises done for the 
+ * Notion relation "Exercises Done"
+ * @param {String} type Strava API response Activity Type
+ * @returns 
+ */
+const fmtActivityToExerciseDoneRelation = (type) => {
+  switch (type) {
+    case "Hike":
+      return ["Hike"];
+    case "Run":
+      return ["Run"];
+    case "Weight Training":
+      return [
+        "Cat Cow",
+        "Asian Squat",
+        "Downward Dog",
+        "Front Neck Stretch",
+        "Half Kneeling Thoracic Rotations",
+        "Seal Stretch",
+        "Tree Pose",
+        "Wall Arm Raises",
+        "Worlds Greatest Stretch",
+      ];
+    default:
+      return []
+  }
+};
+
+
+/**
  * Formats the Strava API Activity type into my corresponding Notion Category
  * @param {String} type Strava API response Activity Type
  * @returns String
@@ -39,6 +69,7 @@ const fmtWeightCategoryType = (type) => {
 };
 
 module.exports = {
+  fmtActivityToExerciseDoneRelation,
   fmtCategoryType,
   fmtWeightCategoryType,
 };

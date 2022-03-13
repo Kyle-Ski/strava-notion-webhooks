@@ -7,7 +7,7 @@ const {
   metersToMiles,
   secondsToTime,
 } = require("./unitConversionUtils");
-const { fmtCategoryType, fmtWeightCategoryType } = require("./fmtUtils");
+const { fmtCategoryType, fmtWeightCategoryType, fmtActivityToExerciseDoneRelation } = require("./fmtUtils");
 const { Client, LogLevel } = require("@notionhq/client");
 const notion = new Client({
   auth: process.env.NOTION_KEY,
@@ -113,20 +113,26 @@ const fmtNotionObject = (stravaObject) => {
         returnObj.properties["Weight Category"] = {
           select: { name: fmtWeightCategoryType(stravaObject[key]) },
         };
+        // const relationOptions = fmtActivityToExerciseDoneRelation(stravaObject[key])
+        // console.log("relationOptions:", JSON.stringify(relationOptions))
+        // const exerciseRelations = await updateRelations(relationOptions)
+        returnObj.properties["Exercises Done"] = {
+          relation: fmtActivityToExerciseDoneRelation(stravaObject[key])
+        }
         continue;
       case "distance":
         returnObj.properties["Distance"] = {
           number: metersToMiles(stravaObject[key]),
         };
         continue;
-      case "relation":
-        returnObj.properties["Exercises Done"] = {
-          relation: stravaObject[key]
-        }
-        continue
+      // case "relation":
+      //   returnObj.properties["Exercises Done"] = {
+      //     relation: stravaObject[key]
+      //   }
+      //   continue
     }
   }
-  if (returnObj?.properties?.Name !== undefined && Name?.title?.length > 0) {
+  if (returnObj?.properties?.Name !== undefined && returnObj?.properties?.Name?.title?.length > 0) {
     const { Name } = returnObj.properties;
     console.log("we're in here...", JSON.stringify(Name));
     if (
@@ -179,6 +185,7 @@ const getDatabaseQueryConfig = (
  * */
 async function addNotionItem(itemToAdd) {
   try {
+    console.log("Trying to add item:", JSON.stringify(itemToAdd))
     const response = await notion.pages.create(itemToAdd);
     console.log("Success! Notion Entry added.");
     return response;
@@ -231,6 +238,7 @@ async function deleteNotionPage(id) {
 
 async function updateNotionPage(notionId, updateObject) {
   try {
+    console.log("-->", JSON.stringify(updateObject))
     updateObject.page_id = notionId;
     const response = await notion.pages.update(updateObject);
     return response;
@@ -485,20 +493,15 @@ const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATAB
  * @param {Array} relationTitle array of Strings containing the relation titles to add.
  * @returns 
  */
-const updateRelations = async (notionId, relationTitle) => {
+const updateRelations = async (relationTitle) => {
   const exercises = await getNotionRelations()
   let foundIds = relationTitle.map(relation => {
     let id = exercises?.results?.find(item => {
-      let itemTextKey = item.properties.Name.type
-      console.log(`
-      item text content: ${JSON.stringify(item.properties.Name[itemTextKey][0].text.content)}
-      `)
-      return item.properties.Name[itemTextKey][0].text.content == relation
+      return item.properties.Name?.title[0]?.text?.content == relation
     })?.id
     return {id}
   })
-  const relationToAdd = fmtNotionObject({relation: foundIds})
-  return updateNotionPage(notionId, relationToAdd)
+  return foundIds
 }
 
 module.exports = {

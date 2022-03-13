@@ -197,6 +197,15 @@ const recieveWebhookEvent = async (req, res, next) => {
             return next();
           }
           const formattedNotionObject = fmtNotionObject(payload);
+          const relationOptions = formattedNotionObject.properties["Exercises Done"]["relation"]
+          console.log("relationOptions1:", JSON.stringify(relationOptions))
+          if (relationOptions.length > 0) {
+            console.log("relationOptions:", JSON.stringify(relationOptions))
+            const exerciseRelations = await updateRelations(relationOptions)
+            formattedNotionObject.properties["Exercises Done"].relation = exerciseRelations
+            console.log("formattedNotionObject:", JSON.stringify(formattedNotionObject))
+          }
+
           addNotionItem(formattedNotionObject);
           res.status(200).json({ message: "EVENT_RECEIEVED" });
           return next();
@@ -211,7 +220,6 @@ const recieveWebhookEvent = async (req, res, next) => {
             res.status(200).json({ message: "EVENT_RECEIEVED" });
             return next();
           }
-
           const thingsToUpdate = fmtNotionObject(updatedActivity);
           const allStravaPages = await getAllStravaPages();
           if (!allStravaPages) {
@@ -267,7 +275,7 @@ const testWebhookEvent = async (req, res, next) => {
   logNotionItem(`Testing Webhook Event: ${eventToTest}`, { timeStamp, subscriptionId })
   const body = {
     name: `test webhook event ${eventToTest}`,
-    aspect_type: eventToTest,
+    aspect_type: "Weight Training",//eventToTest,
     event_time: timeStamp,
     object_id: 6606840419, // Morning Hike Sun Jan 30th 2022
     object_type: "activity",
