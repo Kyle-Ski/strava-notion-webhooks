@@ -149,8 +149,6 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
     }
   }
 
-  returnObj["parent"] = { database_id: process.env.NOTION_DATABASE_ID };
-
   if (shouldAddRelations) {
     returnObj.properties["Exercises Done"] = {
       relation: fmtActivityToExerciseDoneRelation(stravaObject?.type)
@@ -500,12 +498,12 @@ const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATAB
 /**
  * Updates a notion page's "Exercises Done" relation property
  * @param {String} notionId the id of the notion page we want to up date relations in.
- * @param {Array} relationTitle array of Strings containing the relation titles to add.
+ * @param {Array} relationArray array of Strings containing the relation titles to add.
  * @returns 
  */
-const updateRelations = async (relationTitle) => {
+const updateRelations = async (relationArray) => {
   const exercises = await getNotionRelations()
-  let foundIds = relationTitle.map(relation => {
+  let foundIds = relationArray.map(relation => {
     let id = exercises?.results?.find(item => {
       return item.properties.Name?.title[0]?.text?.content == relation
     })?.id

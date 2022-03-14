@@ -148,20 +148,6 @@ const getFallback = async (req, res, next) => {
  * @returns
  */
 const postWebhookSubscription = async (req, res, next) => {
-  // Let's check and see if there's any other subscriptions,
-  // as of now that means we can't resubscribe so let's try to 
-  // delete the exitsing subscription first and try to subscribe
-  const subscriptionIds = await checkForExistingSubscription();
-  if (subscriptionIds && subscriptionIds.length >= 1) {
-    const deleteResponse = await deleteSubscriptionById(subscriptionIds[0]?.id);
-    if (!deleteResponse) {
-      res.status(400).json({
-        message: "Error subscribing to the webhook.",
-        deleteUrl: `${getLocals(req, CALLBACK_URL)}/strava/subscribe/view`,
-      });
-      return next();
-    }
-  }
   const baseUrl = getLocals(req, CALLBACK_URL);
   // Test curl to subscribe to the /webhook GET route
   //   curl -X POST \
@@ -177,12 +163,10 @@ const postWebhookSubscription = async (req, res, next) => {
   body.append("client_secret", process.env.CLIENT_SECRET);
   body.append("callback_url", callback);
   body.append("verify_token", token);
-
   const requestOptions = {
     body,
     method: "POST",
   };
-
   const response = await responseBuilder(
     "https://www.strava.com/api/v3/push_subscriptions",
     "Error attempting to subscribe to the webhook.",
@@ -204,16 +188,17 @@ const postWebhookSubscription = async (req, res, next) => {
         CALLBACK_URL
       )}/strava/test/webhook/create`,
     });
-    return next();
   } else {
     if (
       response?.data?.field == "subscription" &&
       response?.data?.code == "already exists"
     ) {
-      res.status(400).json({
-        message: "Error subscribing to the webhook.",
-        deleteUrl: `${getLocals(req, CALLBACK_URL)}/strava/subscribe/view`,
-      });
+      res
+        .status(400)
+        .json({
+          message: "Error subscribing to the webhook.",
+          deleteUrl: `${getLocals(req, CALLBACK_URL)}/strava/subscribe/view`,
+        });
       return next();
     }
     logNotionError("Error subscribing to the webhook", response);
@@ -233,6 +218,16 @@ const createWebhookEvent = async (req, res, next) => {
     return next();
   }
   const formattedNotionObject = await fmtNotionObject(payload, true);
+  if(!Object.keys(formattedNotionObject).includes("parent") || formattedNotionObject?.parent == undefined) {
+    formattedNotionObject["parent"] = process.env.NOTION_DATABASE_ID
+    console.log("body.parent is undefined...")
+  }
+  if (!formattedNotionObject) {
+    addNotionItem(formattedNotionObject);
+    logNotionError("Error Creating Notin Page", "relationArray.length !> 0, but let's make it anyways?");
+    res.status(200).json({ message: "EVENT_RECEIEVED" });
+    return next();
+  }
   addNotionItem(formattedNotionObject);
   res.status(200).json({ message: "EVENT_RECEIEVED" });
   return next();
@@ -353,7 +348,7 @@ const testWebhookEvent = async (req, res, next) => {
   });
   const body = {
     name: `test webhook event ${eventToTest}`,
-    aspect_type: "Weight Training", //eventToTest,
+    aspect_type: eventToTest,
     event_time: timeStamp,
     object_id: 6606840419, // Morning Hike Sun Jan 30th 2022
     object_type: "activity",
