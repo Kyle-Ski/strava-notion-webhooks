@@ -72,7 +72,6 @@ const responseBuilder = async (url, errorMessage, options = false) => {
   // Make sure the url is a string and at least 18 characters
   checkUrl(url, fetchOptions.method);
   try {
-    console.log("Fetching with:", JSON.stringify(fetchOptions));
     const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
@@ -83,7 +82,6 @@ const responseBuilder = async (url, errorMessage, options = false) => {
         Url: ${url}
       `)
       const data = await response.json();
-      console.log("responseBuilder !ok response:", JSON.stringify(data));
       if (data?.errors?.length) {
         // Strava errors look like this, let's send the error back formatted their way
         return { status: 400, data: { ...data.errors[0]} }
