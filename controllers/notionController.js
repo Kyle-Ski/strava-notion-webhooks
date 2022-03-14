@@ -68,7 +68,7 @@ const testLog = async (req, res, next) => {
       return next();
     }
     console.log("Testing Notion Error Log", JSON.stringify(response));
-    res.status(200).json({ message: "Test log success!" });
+    res.status(200).json({ message: "Test error log success!" });
     return next();
   }
   const response = await logNotionItem(

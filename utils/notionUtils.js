@@ -25,9 +25,8 @@ const addRelations = async (objToFormat) => {
     returnObj.properties["Exercises Done"].relation = relations
     console.log("Return Obj:", JSON.stringify(returnObj))
     return returnObj  
-  } else {
-    return false
   }
+  return returnObj
 }
 
 /**
@@ -138,10 +137,12 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
   }
   if (returnObj?.properties?.Name !== undefined && returnObj?.properties?.Name?.title?.length > 0) {
     const { Name } = returnObj.properties;
-    console.log("we're in here...", JSON.stringify(Name));
     if (
       Name?.title[0].text?.content?.toLowerCase()?.includes("dog") ||
-      Name?.title[0].text?.content?.toLowerCase()?.includes("otis")
+      Name?.title[0].text?.content?.toLowerCase()?.includes("otis") ||
+      Name?.title[0].text?.content?.toLowerCase()?.includes("oats") ||
+      Name?.title[0].text?.content?.toLowerCase()?.includes("🐕") ||
+      Name?.title[0].text?.content?.toLowerCase()?.includes("🦮")
     ) {
       returnObj.properties["Sub Category"] = {
         multi_select: [{ name: "Dog Walk" }],
@@ -357,7 +358,6 @@ async function logNotionError(errorTitle, error) {
   const notionErrorPageId = "615e955ef7c14182a13e091e3b62d89e"; // The page we're logging errors out to
   const logItem = createLogItem(error, errorTitle);
   const notionBlock = await getNotionBlockByPageId(notionErrorPageId); // We can use this to get the block id we want to append to
-  // console.log("NOTION BLOCK:", notionBlock)
   const notionErrorPageBlockId = notionBlock?.id; // "615e955e-f7c1-4182-a13e-091e3b62d89e"
   return updateNotionPageContent(notionErrorPageBlockId, logItem);
 }
@@ -441,7 +441,6 @@ const logNotionItem = async (logTitle, log, url = false) => {
   const notionLogPageId = "8ab781288fcb437bbfffaaf1c88db0b4";
   let logItem = createLogItem(log, logTitle, url);
   const notionBlock = await getNotionBlockByPageId(notionLogPageId);
-  // console.log("logNotionItem", JSON.stringify(notionBlock))
   const notionLogPageBlockId = notionBlock?.id; //"8ab78128-8fcb-437b-bfff-aaf1c88db0b4"
   return updateNotionPageContent(notionLogPageBlockId, logItem);
 };

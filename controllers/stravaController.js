@@ -31,7 +31,7 @@ const {
  * @param {Object} res The response object from the route
  * @returns
  */
-const deleteSubscriptionById = async (subscriptionId, res) => {
+const deleteSubscriptionById = async (subscriptionId) => {
   console.log("Deleting subscription...", subscriptionId);
   const body = new FormData();
   body.append("client_id", process.env.CLIENT_ID);
@@ -47,7 +47,6 @@ const deleteSubscriptionById = async (subscriptionId, res) => {
     `Error deleting subscription: ${subscriptionId}`,
     requestOptions
   );
-  console.log("DELETE RESPONSE:", JSON.stringify(response));
   return response;
 };
 
@@ -106,7 +105,6 @@ const getFallback = async (req, res, next) => {
     "6606840419",
     getLocals(req, ACCESS_TOKEN)
   );
-  console.log("GET /", payload);
   if (!payload) {
     res.status(500).json({ message: "Error getting strava activity for '/'" });
     return next();
@@ -223,7 +221,6 @@ const createWebhookEvent = async (req, res, next) => {
     console.log("body.parent is undefined...")
   }
   if (!formattedNotionObject) {
-    addNotionItem(formattedNotionObject);
     logNotionError("Error Creating Notin Page", "relationArray.length !> 0, but let's make it anyways?");
     res.status(200).json({ message: "EVENT_RECEIEVED" });
     return next();
@@ -287,7 +284,6 @@ const updateWebhookEvent = async (req, res, next) => {
  * @returns
  */
 const recieveWebhookEvent = async (req, res, next) => {
-  const token = getLocals(req, ACCESS_TOKEN);
   console.log("webhook event received!", req.query, req.body);
   logNotionItem("Webhook Event", {
     object_type: req?.body?.object_type,

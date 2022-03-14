@@ -25,7 +25,6 @@ app.listen(
 );
 app.use(logRequests);
 app.get("/", async (req, res, next) => {
-  console.log("ARE WE HERE??????????");
   const baseUrl = app?.locals?.callbackUrl;
   const returnJson = {
     message: "Hello from the root!",
