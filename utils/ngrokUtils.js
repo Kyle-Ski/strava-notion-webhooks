@@ -1,3 +1,4 @@
+require("dotenv").config();
 const ngrok = require("ngrok");
 const { logNotionError, logNotionItem } = require("./notionUtils");
 
@@ -11,12 +12,12 @@ const connectNgrok = async (port, ngrokAuthToken, setLocalsUrl) => {
       addr: port,
     });
     setLocalsUrl(url);
-    let authUrl = `https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`
+    let authUrl = `https://www.strava.com/oauth/authorize?client_id=${process.env.CLIENT_ID}&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`
     logNotionItem("Ngrok URL", { url, authUrl }, authUrl);
     console.log(
       "url:",
       url.split("https://")[1],
-      `Auth URL: ${`https://www.strava.com/oauth/authorize?client_id=78993&response_type=code&redirect_uri=${url}/auth/exchange_token&approval_prompt=force&scope=read_all,read,activity:read`}`
+      `Auth URL: ${authUrl}`
     );
     return;
   } catch (e) {

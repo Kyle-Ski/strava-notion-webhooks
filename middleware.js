@@ -83,11 +83,6 @@ const refreshStravaToken = async (req, res, next) => {
   let currentRefreshToken = getLocals(req, REFRESH_TOKEN);
   if (timeExpired && currentRefreshToken) {
     const newCreds = await fetchNewTokens(currentRefreshToken);
-    console.log(`
-        New Credentials:
-        ${JSON.stringify(newCreds)}
-    `);
-
     if (!newCreds?.status || !newCreds?.data || newCreds?.status !== 200) {
       console.error("Error refreshing the tokens...", JSON.stringify(newCreds));
       logNotionError("Error refreshing the tokens", newCreds)

@@ -1,11 +1,47 @@
 /**
+ * Formats Strava Activity type into the exercises done for the 
+ * Notion relation "Exercises Done"
+ * @param {String} type Strava API response Activity Type
+ * @param {Array} inputArr Optional array to input, usefull for updating
+ * where we don't want to override any of the old values.
+ * @returns 
+ */
+const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
+  let previousExercises = inputArr
+  let stretchRoutine = [
+    "Cat Cow",
+    "Asian Squat",
+    "Downward Dog",
+    "Front Neck Stretch",
+    "Half Kneeling Thoracic Rotations",
+    "Seal Stretch",
+    "Tree Pose",
+    "Wall Arm Raises",
+    "Worlds Greatest Stretch",
+  ]
+  if (!inputArr.length > 0) {
+    previousExercises = []
+  }
+  switch (type) {
+    case "Hike":
+      return [...new Set([...inputArr, "Hike"])];
+    case "Run":
+      return [...new Set([...inputArr, "Run"])];
+    case "WeightTraining":
+      return [... new Set([...inputArr, ...stretchRoutine])];
+    default:
+      return [...new Set([...inputArr])]
+  }
+};
+
+
+/**
  * Formats the Strava API Activity type into my corresponding Notion Category
  * @param {String} type Strava API response Activity Type
  * @returns String
  */
 const fmtCategoryType = (type) => {
   let categoryType = "";
-  // console.log(`Formatting Category Type ${type}`);
   switch (type) {
     case "Hike":
       categoryType = "Hikes";
@@ -22,16 +58,15 @@ const fmtCategoryType = (type) => {
  * @returns
  */
 const fmtWeightCategoryType = (type) => {
-  // console.log(`Formatting Weight Category Type ${type}`);
   switch (type) {
-    case "Alpine Ski":
-    case "Backcountry Ski":
+    case "AlpineSki":
+    case "BackcountrySki":
     case "Hike":
     case "Run":
       return "Cardio";
     case "Walk":
       return "Rest";
-    case "Weight Training":
+    case "WeightTraining":
       return "Weights";
     default:
       return "Cardio";
@@ -39,6 +74,7 @@ const fmtWeightCategoryType = (type) => {
 };
 
 module.exports = {
+  fmtActivityToExerciseDoneRelation,
   fmtCategoryType,
   fmtWeightCategoryType,
 };
