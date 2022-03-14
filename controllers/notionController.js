@@ -21,7 +21,32 @@ const { ACCESS_TOKEN } = LOCALS_KEYS;
  * @param {Object} next
  */
 const getFallback = async (req, res, next) => {
-  return res.status(200).json({ message: "hello from the notion route" });
+  let respObj = {
+    message: "Hello from the Notion route!",
+    stravaRoutes: {
+      deleteCurrentSubscription: `${baseUrl}/strava/delete`,
+      deleteSubscriptionById: `"${baseUrl}/strava/delete/SUBSCRIPTION_ID_TO_DELETE"`,
+      subscribeToWebhook: `${baseUrl}/strava/subscribe`,
+      testStravaWebhookEvent: {
+        url: `"${baseUrl}/strava/test/webhook/STRAVA_EVENT_TO_TEST"`,
+        example: `${baseUrl}/strava/webhook/WeightTraining`,
+      },
+      validateStravaSubscription: `${baseUrl}/strava/webhook`,
+      viewSubscriptions: `${baseUrl}/strava/view`,
+    },
+    notionRoutes: {
+      testUpdateRelations: {
+        url: `"${baseUrl}/notion/test/relation/EVENT_TYPE"`,
+        example: `${baseUrl}/notion/test/relation/Run`
+      },
+      testLogToNotion: {
+        url: `"${baseUrl}/notion/test/log/LOG_TITLE"`,
+        example: `${baseUrl}/notion/test/relation/log-title-1`,
+        additionalFunctionality: "You can include 'error' in the log title to test logNotionError(), otherwise it will use logNotionItem()"
+      }
+    },
+  }
+  return res.status(200).json(respObj);
 };
 
 /**
