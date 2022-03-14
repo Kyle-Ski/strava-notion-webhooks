@@ -151,8 +151,9 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
   }
 
   if (shouldAddRelations) {
+    console.log("ADD RELATIONS")
     returnObj.properties["Exercises Done"] = {
-      relation: fmtActivityToExerciseDoneRelation(stravaObject?.type)
+      relation: fmtActivityToExerciseDoneRelation(stravaObject?.type, shouldAddRelations)
     }
     return await addRelations(returnObj)
   }
@@ -350,6 +351,22 @@ const getNotionPageById = async (pageId) => {
 };
 
 /**
+ * Returns the names of relations in an array
+ * @param {Array} relations [{id: "LONG STRING"}, {id: "LONG STRING"}]
+ */
+const getRelationNamesByIds = async (relations) => {
+  const allExercises = await getNotionRelations()
+  if (!allExercises) {
+    console.warn("Couldn't get all exercises.")
+    return []
+  }
+  return relations.map(relation => {
+    const foundExercise = allExercises?.results?.find(exercise => exercise.id == relation.id)?.properties?.Name?.title[0]?.text?.content
+    return foundExercise
+  })
+}
+
+/**
  *
  * @param {String} errorTitle the title of the toggle that will hold the error
  * @param {Object} error the error we wish to log to notion
@@ -520,6 +537,7 @@ module.exports = {
   getNotionBlockChildrenByBlockId,
   getNotionBlockByPageId,
   getNotionPageById,
+  getRelationNamesByIds,
   logNotionError,
   logNotionItem,
   updateNotionPage,

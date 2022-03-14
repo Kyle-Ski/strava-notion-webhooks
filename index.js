@@ -2,8 +2,7 @@
 require("dotenv").config();
 
 const express = require("express"),
-  bodyParser = require("body-parser"),
-  app = express().use(bodyParser.json());
+  bodyParser = require("body-parser")
 
 const { connectNgrok } = require("./utils/ngrokUtils");
 const { logNotionError } = require("./utils/notionUtils");
@@ -14,6 +13,7 @@ const stravaRoutes = require("./routes/stravaRoutes");
 const notionRoutes = require("./routes/notionRoutes");
 const expressPort = 8080;
 
+const app = express().use(bodyParser.json());
 // Sets server port and connects ngrok to the same port
 app.listen(
   process.env.PORT || expressPort,

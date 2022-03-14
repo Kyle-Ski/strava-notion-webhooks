@@ -2,28 +2,35 @@
  * Formats Strava Activity type into the exercises done for the 
  * Notion relation "Exercises Done"
  * @param {String} type Strava API response Activity Type
+ * @param {Array} inputArr Optional array to input, usefull for updating
+ * where we don't want to override any of the old values.
  * @returns 
  */
-const fmtActivityToExerciseDoneRelation = (type) => {
+const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
+  let previousExercises = inputArr
+  let stretchRoutine = [
+    "Cat Cow",
+    "Asian Squat",
+    "Downward Dog",
+    "Front Neck Stretch",
+    "Half Kneeling Thoracic Rotations",
+    "Seal Stretch",
+    "Tree Pose",
+    "Wall Arm Raises",
+    "Worlds Greatest Stretch",
+  ]
+  if (!inputArr.length > 0) {
+    previousExercises = []
+  }
   switch (type) {
     case "Hike":
-      return ["Hike"];
+      return [...new Set([...inputArr, "Hike"])];
     case "Run":
-      return ["Run"];
+      return [...new Set([...inputArr, "Run"])];
     case "WeightTraining":
-      return [
-        "Cat Cow",
-        "Asian Squat",
-        "Downward Dog",
-        "Front Neck Stretch",
-        "Half Kneeling Thoracic Rotations",
-        "Seal Stretch",
-        "Tree Pose",
-        "Wall Arm Raises",
-        "Worlds Greatest Stretch",
-      ];
+      return [... new Set([...inputArr, ...stretchRoutine])];
     default:
-      return []
+      return [...new Set([...inputArr])]
   }
 };
 

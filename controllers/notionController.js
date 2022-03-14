@@ -1,18 +1,10 @@
 require("dotenv").config();
-const { getLocals } = require("../utils/localsUtils");
-const { LOCALS_KEYS } = require("../constants");
 const {
-  getAllStravaPages,
   fmtNotionObject,
-  addNotionItem,
   logNotionError,
   logNotionItem,
-  updateRelations,
   updateNotionPage,
 } = require("../utils/notionUtils");
-const { getActivityById } = require("../utils/stravaUtils");
-
-const { ACCESS_TOKEN } = LOCALS_KEYS;
 
 /**
  * The fallback function for the "notion/" route.
