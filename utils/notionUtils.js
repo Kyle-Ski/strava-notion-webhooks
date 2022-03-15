@@ -22,6 +22,9 @@ const addRelations = async (objToFormat) => {
   let relationArray = objToFormat?.properties["Exercises Done"]?.relation
   if (relationArray.length > 0) {
     const relations = await updateRelations(relationArray)
+    if (relations?.length == 0) {
+      return returnObj  
+    }
     returnObj.properties["Exercises Done"].relation = relations
     console.log("Return Obj:", JSON.stringify(returnObj))
     return returnObj  
@@ -523,6 +526,9 @@ const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATAB
  */
 const updateRelations = async (relationArray) => {
   const exercises = await getNotionRelations()
+  if (!exercises) {
+    return []
+  }
   let foundIds = relationArray.map(relation => {
     let id = exercises?.results?.find(item => {
       return item.properties.Name?.title[0]?.text?.content == relation
