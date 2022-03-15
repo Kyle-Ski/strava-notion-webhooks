@@ -261,10 +261,13 @@ const updateWebhookEvent = async (req, res, next) => {
     );
     return createWebhookEvent(req, res, next);
   }
-  const notionPageToUpdate = await getNotionPageById(notionId)
-  const prevRelationNames = await getRelationNamesByIds(notionPageToUpdate.properties["Exercises Done"]?.relation)
-  const thingsToUpdate = await fmtNotionObject(updatedActivity, prevRelationNames);
-  updateNotionPage(notionId, thingsToUpdate);
+  const notionPageToUpdate = getNotionPageById(notionId)
+  const notionPageUpdated = await notionPageToUpdate
+  const prevRelationNames = getRelationNamesByIds(notionPageUpdated.properties["Exercises Done"]?.relation)
+  const resolvedRelationNames = await prevRelationNames
+  const thingsToUpdate = fmtNotionObject(updatedActivity, resolvedRelationNames);
+  const resolvedThings = await thingsToUpdate
+  updateNotionPage(notionId, resolvedThings);
   res.status(200).json({ message: "EVENT_RECEIEVED" });
   return next();
 };
