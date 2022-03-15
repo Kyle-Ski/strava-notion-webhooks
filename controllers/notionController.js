@@ -4,6 +4,7 @@ const {
   logNotionError,
   logNotionItem,
   updateNotionPage,
+  getPastExercises,
 } = require("../utils/notionUtils");
 
 /**
@@ -75,6 +76,43 @@ const testLog = async (req, res, next) => {
   res.status(200).json({ message: "Test log success!" });
 };
 
+const testNotionReccomendation = async (req, res, next) => {
+  const numberDaysPast = typeof Number(req?.params?.day) == "number" ? Number(req?.params?.day) : false
+  if (!numberDaysPast) {
+    res.status(400).json({ messge: "bad request, params must be a number" })
+  }
+  const pastExercises = await getPastExercises(numberDaysPast)
+  const arrayThing = pastExercises?.results.map(result => {
+    return result.properties.all_areas_targeted_tags.rollup.array.map(exercise => exercise.multi_select.map(area => {
+      return { area: area.name, id: area.id }
+    })).flat(1)
+  }).flat(1)
+  console.log(`
+    Past Exercises:
+    ${JSON.stringify(arrayThing.length)}
+  `)
+  let stats = arrayThing.reduce((previousValue, currentValue, currentIndex) => {
+    console.log("previousValue", JSON.stringify(previousValue), "currentValue", JSON.stringify(currentValue), "currentIndex", JSON.stringify(currentIndex))
+    if(!previousValue[currentValue.area]) {
+      previousValue[currentValue.area] = 1
+      return previousValue
+    }
+    previousValue[currentValue.area] += 1
+    return previousValue
+  },{})
+  console.log(`
+        Stats:
+        ${JSON.stringify(stats)}
+  `)
+  const thingsToFormat = await fmtNotionObject({ reccomend: req?.params?.day })
+  const response = await updateNotionPage("48402d5bf851432c862998c5aa2a5531", thingsToFormat)
+  if (!response) {
+    res.status(500).json({ message: "Unable to test updating the reccomended activity property"})
+    return next()
+  }  
+  res.status(200).json({message: `${req?.params?.day}`})
+}
+
 const testNotionRelation = async (req, res, next) => {
   //https://www.notion.so/kalestew/Trip-to-the-PO-with-Otis-48402d5bf851432c862998c5aa2a5531
   //https://www.notion.so/kalestew/Trip-to-the-PO-with-Otis-48402d5bf851432c862998c5aa2a5531
@@ -96,4 +134,5 @@ module.exports = {
   getFallback,
   testLog,
   testNotionRelation,
+  testNotionReccomendation,
 };

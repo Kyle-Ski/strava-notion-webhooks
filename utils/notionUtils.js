@@ -13,9 +13,24 @@ const notion = new Client({
   auth: process.env.NOTION_KEY,
   logLevel: LogLevel.DEBUG,
 });
+
 const stravaFilter = {
   and: [{ property: "strava_id", rich_text: { is_not_empty: true } }],
 };
+
+/**
+ * Creates a time filter for a notion config.
+ * @param {number} daysToSubtract number of days to subtract from now
+ * @returns ISO string
+ */
+const getTimeFilter = (daysToSubtract = 3) => {
+  let d = new Date()
+  d.setDate(d.getDate() - daysToSubtract)
+  const afterFilter = new Date(d)
+  return {
+    and: [{ property: "Date", date:{ after: afterFilter.toISOString() } }], //[{ property: "Date", after: { start: afterFilter.toISOString() } }],
+  }
+}
 
 const addRelations = async (objToFormat) => {
   let returnObj = objToFormat
@@ -131,6 +146,16 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
           number: metersToMiles(stravaObject[key]),
         };
         continue;
+      case "reccomend":
+        returnObj.properties["Recommended Areas"] = {
+          rich_text: [
+            {
+              text: {
+                content: stravaObject[key],
+              },
+            },
+          ],
+        };
       default:
         continue
     }
@@ -511,6 +536,21 @@ const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATAB
   }
 }
 
+const getPastExercises = async (daysPast) => {
+  try {
+    const config = getDatabaseQueryConfig()
+    config.filter = getTimeFilter(daysPast)
+    // config.filter.and.push(stravaFilter.and[0]) // We could add this if we wanted only the strava activities
+    console.log("Time Filter:", JSON.stringify(config))
+    const response = await notion.databases.query(config)
+    return response
+  } catch (e) {
+    console.warn(`Error while trying get the past ${daysPast} days of notion exercises.`, JSON.stringify(e))
+    logNotionError(`Error while trying get the past ${daysPast} days of notion exercises.`, e)
+    return false
+  }
+}
+
 /**
  * Updates a notion page's "Exercises Done" relation property
  * @param {String} notionId the id of the notion page we want to up date relations in.
@@ -529,6 +569,7 @@ const updateRelations = async (relationArray) => {
 }
 
 module.exports = {
+  getTimeFilter,
   addNotionItem,
   fmtNotionObject,
   deleteNotionPage,
@@ -537,6 +578,7 @@ module.exports = {
   getNotionBlockChildrenByBlockId,
   getNotionBlockByPageId,
   getNotionPageById,
+  getPastExercises,
   getRelationNamesByIds,
   logNotionError,
   logNotionItem,
