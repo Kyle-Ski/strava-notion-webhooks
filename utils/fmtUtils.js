@@ -24,13 +24,13 @@ const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
   }
   switch (type) {
     case "Hike":
-      return [...new Set([...inputArr, "Hike"])];
+      return [...new Set([...previousExercises, "Hike"])];
     case "Run":
-      return [...new Set([...inputArr, "Run"])];
+      return [...new Set([...previousExercises, "Run"])];
     case "WeightTraining":
-      return [... new Set([...inputArr, ...stretchRoutine])];
+      return [... new Set([...previousExercises, ...stretchRoutine])];
     default:
-      return [...new Set([...inputArr])]
+      return [...new Set([...previousExercises])]
   }
 };
 

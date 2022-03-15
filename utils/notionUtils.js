@@ -151,7 +151,7 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
   }
 
   if (shouldAddRelations) {
-    console.log("ADD RELATIONS")
+    console.log("ADD RELATIONS", JSON.stringify(addRelations))
     returnObj.properties["Exercises Done"] = {
       relation: fmtActivityToExerciseDoneRelation(stravaObject?.type, shouldAddRelations)
     }
