@@ -536,6 +536,11 @@ const getNotionRelations = async (dataBaseId = process.env.NOTION_EXERCISE_DATAB
   }
 }
 
+/**
+ * Gets all of the items in the database in the past daysPast number of days
+ * @param {number} daysPast number of days ago, that we want to get pages for
+ * @returns 
+ */
 const getPastExercises = async (daysPast) => {
   try {
     const config = getDatabaseQueryConfig()
