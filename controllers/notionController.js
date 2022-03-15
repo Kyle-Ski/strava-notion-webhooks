@@ -109,8 +109,8 @@ const testNotionReccomendation = async (req, res, next) => {
     previousValue[currentValue.area] += 1;
     return previousValue;
   }, {});
-  
-  const findMaxesAndMins = (stats, numberDaysPast) => {
+
+  const findMaxesAndMins = (stats, numOfValues) => {
     let keys = Object.keys(stats)
     let values = Object.values(stats)
     let maxIndexArray = [];
@@ -118,11 +118,11 @@ const testNotionReccomendation = async (req, res, next) => {
     for (var i = 0; i < values.length; i++) {
         maxIndexArray.push(i); // add index to output array
         minIndexArray.push(i)
-        if (maxIndexArray.length > numberDaysPast) {
+        if (maxIndexArray.length > numOfValues) {
             maxIndexArray.sort(function(a, b) { return values[b] - values[a]; }); // descending sort the output array
             maxIndexArray.pop(); // remove the last index (index of smallest element in output array)
         }
-        if (minIndexArray.length > numberDaysPast) {
+        if (minIndexArray.length > numOfValues) {
           minIndexArray.sort(function(a, b) { return values[a] - values[b]; }); // ascending sort the output array
           minIndexArray.pop(); // remove the last index (index of largest element in output array)
       }
