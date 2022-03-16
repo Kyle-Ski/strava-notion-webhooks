@@ -13,7 +13,6 @@ const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
     "Asian Squat",
     "Downward Dog",
     "Front Neck Stretch",
-    "Half Kneeling Thoracic Rotations",
     "Seal Stretch",
     "Tree Pose",
     "Wall Arm Raises",

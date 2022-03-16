@@ -6,9 +6,9 @@ const { logNotionError } = require("../utils/notionUtils");
 
 
 /**
- * Exchanges tokens from Strava's Oauth service, authorizing our app to use the user's data.
+ * Exchanges tokens from Strava's Oauth service, authorizing our app to access the user's data.
  * We will get our refresh_token and access_token from this exchange.
- * @param {number} code short lived code from strava
+ * @param {number} code short lived code from strava used to get our tokens
  * @param {*} res 
  * @param {*} req 
  */

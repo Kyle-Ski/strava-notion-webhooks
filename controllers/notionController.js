@@ -1,6 +1,5 @@
 require("dotenv").config();
 const {
-  fmtNotionObject,
   logNotionError,
   logNotionItem,
   updateNotionPage,
@@ -79,12 +78,7 @@ const testNotionRelation = async (req, res, next) => {
   //https://www.notion.so/kalestew/Trip-to-the-PO-with-Otis-48402d5bf851432c862998c5aa2a5531
   //https://www.notion.so/kalestew/Trip-to-the-PO-with-Otis-48402d5bf851432c862998c5aa2a5531
   const eventTypeToTest = req?.params?.eventType ? req?.params?.eventType : "WeightTraining"
-  const thingsToFormat = await fmtNotionObject({type: eventTypeToTest }, true)
-  if (!thingsToFormat) {
-    res.status(200).json({ message: "relationArray.length !> 0"})  
-    return next()
-  }
-  const response = await updateNotionPage("48402d5bf851432c862998c5aa2a5531", thingsToFormat)//await updateRelations("48402d5bf851432c862998c5aa2a5531", ["Plank", "Fly"])
+  const response = await updateNotionPage("48402d5bf851432c862998c5aa2a5531", {type: eventTypeToTest })//await updateRelations("48402d5bf851432c862998c5aa2a5531", ["Plank", "Fly"])
   if (!response) {
     res.status(500).json({ message: "Unable to test updating a notion relation."})
     return next()
