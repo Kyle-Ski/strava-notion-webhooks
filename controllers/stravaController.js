@@ -215,17 +215,18 @@ const createWebhookEvent = async (req, res, next) => {
     res.status(200).json({ message: "EVENT_RECEIEVED" });
     return next();
   }
-  const formattedNotionObject = await fmtNotionObject(payload, true);
-  if(!Object.keys(formattedNotionObject).includes("parent") || formattedNotionObject?.parent == undefined) {
-    formattedNotionObject["parent"] = process.env.NOTION_DATABASE_ID
+  const formattedObjectResponse = fmtNotionObject(payload, true);
+  const formattedObject = await formattedObjectResponse
+  if(!Object.keys(formattedObject).includes("parent") || formattedObject?.parent == undefined) {
+    formattedObject["parent"] = process.env.NOTION_DATABASE_ID
     console.log("body.parent is undefined...")
   }
-  if (!formattedNotionObject) {
-    logNotionError("Error Creating Notin Page", "relationArray.length !> 0, but let's make it anyways?");
+  if (!formattedObject) {
+    logNotionError("Error Creating Notin Page", "relationArray.length !> 0");
     res.status(200).json({ message: "EVENT_RECEIEVED" });
     return next();
   }
-  addNotionItem(formattedNotionObject);
+  addNotionItem(formattedObject);
   res.status(200).json({ message: "EVENT_RECEIEVED" });
   return next();
 };

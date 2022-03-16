@@ -162,7 +162,9 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
     returnObj.properties["Exercises Done"] = {
       relation: formattedRelations
     }
-    return await addRelations(returnObj)
+    const addRelationsResponse = addRelations(returnObj)
+    const relationsAdded = await addRelationsResponse
+    return relationsAdded
   }
   return returnObj;
 };
