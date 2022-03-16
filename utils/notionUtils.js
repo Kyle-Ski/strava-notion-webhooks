@@ -256,8 +256,14 @@ async function deleteNotionPage(id) {
 
 async function updateNotionPage(notionId, updateObject) {
   try {
-    updateObject.page_id = notionId;
-    const response = await notion.pages.update(updateObject);
+    const notionPageToUpdate = getNotionPageById(notionId)
+    const notionPageById = await notionPageToUpdate
+    const prevRelationNames = getRelationNamesByIds(notionPageById.properties["Exercises Done"]?.relation)
+    const resolvedPrevRelationNames = await prevRelationNames
+    const thingsToFormat = fmtNotionObject(updateObject, resolvedPrevRelationNames)
+    const formattedThings = await thingsToFormat  
+    formattedThings.page_id = notionId
+    const response = await notion.pages.update(formattedThings);
     return response;
   } catch (e) {
     console.error(

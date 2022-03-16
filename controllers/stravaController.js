@@ -15,8 +15,6 @@ const {
   getAllStravaPages,
   logNotionError,
   logNotionItem,
-  getNotionPageById,
-  getRelationNamesByIds,
 } = require("../utils/notionUtils");
 const { getActivityById } = require("../utils/stravaUtils");
 
@@ -261,13 +259,7 @@ const updateWebhookEvent = async (req, res, next) => {
     );
     return createWebhookEvent(req, res, next);
   }
-  const notionPageToUpdate = getNotionPageById(notionId)
-  const notionPageUpdated = await notionPageToUpdate
-  const prevRelationNames = getRelationNamesByIds(notionPageUpdated.properties["Exercises Done"]?.relation)
-  const resolvedRelationNames = await prevRelationNames
-  const thingsToUpdate = fmtNotionObject(updatedActivity, resolvedRelationNames);
-  const resolvedThings = await thingsToUpdate
-  updateNotionPage(notionId, resolvedThings);
+  updateNotionPage(notionId, updatedActivity);
   res.status(200).json({ message: "EVENT_RECEIEVED" });
   return next();
 };
