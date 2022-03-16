@@ -221,6 +221,11 @@ const createWebhookEvent = async (req, res, next) => {
     formattedObject["parent"] = process.env.NOTION_DATABASE_ID
     console.log("body.parent is undefined...")
   }
+  if(Object.keys(formattedObject?.properties).includes("Exercises Done")) {
+    if (!formattedObject?.properties["Exercises Done"]?.relation[0]?.id) {
+      formattedObject.properties["Exercises Done"].relation = [{ id: "ebdbc0620a81455d8243eee6e0255a70" }] // Hike
+    }
+  }
   if (!formattedObject) {
     logNotionError("Error Creating Notin Page", "relationArray.length !> 0");
     res.status(200).json({ message: "EVENT_RECEIEVED" });
