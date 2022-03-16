@@ -37,6 +37,9 @@ const addRelations = async (objToFormat) => {
   let relationArray = objToFormat?.properties["Exercises Done"]?.relation
   if (relationArray.length > 0) {
     const relations = await updateRelations(relationArray)
+    if (relations?.length == 0) {
+      return returnObj  
+    }
     returnObj.properties["Exercises Done"].relation = relations
     console.log("Return Obj:", JSON.stringify(returnObj))
     return returnObj  
@@ -176,9 +179,13 @@ const fmtNotionObject = async (stravaObject, shouldAddRelations = false) => {
   }
 
   if (shouldAddRelations) {
-    console.log("ADD RELATIONS")
+    const formattedRelations = fmtActivityToExerciseDoneRelation(stravaObject?.type, shouldAddRelations)
+    if(!formattedRelations?.length || formattedRelations.length == 0) {
+      return returnObj
+    }
+    console.log("ADD RELATIONS", formattedRelations)
     returnObj.properties["Exercises Done"] = {
-      relation: fmtActivityToExerciseDoneRelation(stravaObject?.type, shouldAddRelations)
+      relation: formattedRelations
     }
     return await addRelations(returnObj)
   }
@@ -274,8 +281,14 @@ async function deleteNotionPage(id) {
 
 async function updateNotionPage(notionId, updateObject) {
   try {
-    updateObject.page_id = notionId;
-    const response = await notion.pages.update(updateObject);
+    const notionPageToUpdate = getNotionPageById(notionId)
+    const notionPageById = await notionPageToUpdate
+    const prevRelationNames = getRelationNamesByIds(notionPageById.properties["Exercises Done"]?.relation)
+    const resolvedPrevRelationNames = await prevRelationNames
+    const thingsToFormat = fmtNotionObject(updateObject, resolvedPrevRelationNames)
+    const formattedThings = await thingsToFormat  
+    formattedThings.page_id = notionId
+    const response = await notion.pages.update(formattedThings);
     return response;
   } catch (e) {
     console.error(
@@ -564,6 +577,9 @@ const getPastExercises = async (daysPast) => {
  */
 const updateRelations = async (relationArray) => {
   const exercises = await getNotionRelations()
+  if (!exercises) {
+    return []
+  }
   let foundIds = relationArray.map(relation => {
     let id = exercises?.results?.find(item => {
       return item.properties.Name?.title[0]?.text?.content == relation

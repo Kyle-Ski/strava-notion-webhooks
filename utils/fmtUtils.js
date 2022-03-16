@@ -13,7 +13,6 @@ const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
     "Asian Squat",
     "Downward Dog",
     "Front Neck Stretch",
-    "Half Kneeling Thoracic Rotations",
     "Seal Stretch",
     "Tree Pose",
     "Wall Arm Raises",
@@ -24,13 +23,13 @@ const fmtActivityToExerciseDoneRelation = (type, inputArr) => {
   }
   switch (type) {
     case "Hike":
-      return [...new Set([...inputArr, "Hike"])];
+      return [...new Set([...previousExercises, "Hike"])];
     case "Run":
-      return [...new Set([...inputArr, "Run"])];
+      return [...new Set([...previousExercises, "Run"])];
     case "WeightTraining":
-      return [... new Set([...inputArr, ...stretchRoutine])];
+      return [... new Set([...previousExercises, ...stretchRoutine])];
     default:
-      return [...new Set([...inputArr])]
+      return [...new Set([...previousExercises])]
   }
 };
 
