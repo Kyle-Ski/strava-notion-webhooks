@@ -29,10 +29,11 @@ async function getActivityById(id, token) {
  * @param {String} token Strava access_token
  * @returns
  */
-async function getAllActivities(token) {
+async function getAllActivities(token, page = 1) {
   try {
     const payload = await strava.athlete.listActivities({
       access_token: token,
+      page
     });
     return payload;
   } catch (e) {
