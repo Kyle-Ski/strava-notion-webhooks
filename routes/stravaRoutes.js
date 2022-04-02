@@ -3,6 +3,7 @@ const router = express.Router();
 const controller = require("../controllers/stravaController");
 
 router.get("/", controller.getFallback);
+router.get("/all/:page", controller.getAll)
 router.get("/webhook", controller.validateStravaSubscription);
 router.post("/webhook", controller.recieveWebhookEvent);
 router.get("/subscribe", controller.postWebhookSubscription);

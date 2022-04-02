@@ -16,7 +16,7 @@ const {
   logNotionError,
   logNotionItem,
 } = require("../utils/notionUtils");
-const { getActivityById } = require("../utils/stravaUtils");
+const { getActivityById, getAllActivities } = require("../utils/stravaUtils");
 
 const {
   ACCESS_TOKEN,
@@ -91,6 +91,48 @@ const deleteSubscriptionByIdGET = async (req, res, next) => {
       .json({ message: `Bad request, ${req.params.id} is not a number` });
   }
 };
+
+const getAll = async (req, res, next) => {
+  let gettingAll = getLocals(req, "gettingAll")
+  console.log("Getting all?", gettingAll)
+  if (!gettingAll) {
+    setLocals(req, "gettingAll", true)
+  } else {
+    res.json({message: "we were hit twice..."})
+    return next()
+  }
+  const allStravaPages = await getAllStravaPages()
+  const activityIdsInNotion = allStravaPages.map(page => page.properties?.strava_id?.rich_text[0]?.text?.content)
+  const token = getLocals(req, ACCESS_TOKEN);
+  const allStravaResponse = getAllActivities(token, Number(req.params.page))
+  const allActivities = await allStravaResponse
+  let count = 0
+  const increaseCount = () => {
+    count++
+    if (count === allActivities.length) {
+      setLocals(req, "gettingAll", false)
+    }
+  }
+  while (count < allActivities.length) {
+    console.log("WHILE:", activityIdsInNotion.includes(JSON.stringify(allActivities[count].id)))
+    if(!activityIdsInNotion.includes(JSON.stringify(allActivities[count].id))) {
+      const formattedNotionObject = await fmtNotionObject(allActivities[count], true)
+      console.log("NEW ONE:", JSON.stringify(formattedNotionObject))
+      const addResponse = await addNotionItem(formattedNotionObject)
+      if (!addResponse) {
+        increaseCount()
+        continue  
+      } else {
+        console.log("ERROR ADDING NOTION ITEM")
+        increaseCount()
+        continue  
+      }
+    }
+    increaseCount()
+    continue
+  }
+  res.json({ ...activityIdsInNotion })
+}
 
 /**
  * The fallback function for the "notion/" route. It will also test out a few things.
@@ -478,6 +520,7 @@ const checkForExistingSubscription = async () => {
 module.exports = {
   deleteSubscription,
   deleteSubscriptionByIdGET,
+  getAll,
   getFallback,
   postWebhookSubscription,
   recieveWebhookEvent,
