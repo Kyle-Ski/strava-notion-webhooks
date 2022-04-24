@@ -1,4 +1,4 @@
-# strava-notion-webhooks
+# strava-notion-webhooks (WIP)
 
 ## Abstract
 This is a little express server that can connect to my strava account with the [Strava API](https://developers.strava.com/) and to a Notion database with the [Notion API](https://developers.notion.com/).
